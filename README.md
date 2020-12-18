@@ -1,2 +1,50 @@
 # Xen2K
- A Java2K variant, but it's deterministic
+A Java2K variant, but it's deterministic
+
+See http://p-nand-q.com/programming/languages/java2k/manual.html to know the Java2K base coding
+
+# Built-in functions
+
+Do not use specific function names that has a number name which are in the range between 1000~9999 (The range is expressed in 10-digit numbers)
+
+There are built-in functions comes from original Java2K in that range.
+
+----
+"function name"
+description
+----
+
+"125 "
+Add argument [0] to argument [1]
+"11 6"
+Divide argument [0] by argument [1]
+"12 4"
+Subtract argument [1] from argument [0]
+"131 "
+Multiply argument [0] with argument [1]
+"13 2"
+NAND argument[0] with argument[1]
+"16  "
+[two spaces] Assign argument[0] to argument[1]
+"1 1 "
+This function will output argument [0] as single ascii character
+"1 00"
+Exit program.
+"61 8"
+Loop forever, executing argument[0]. If the instruction fails, argument[1] is executed instead.
+"5  5"
+Compare argument[0], argument[1]
+"5 60"
+If both arguments last compared were equal, execute argument[0], else argument[1]
+"5 67"
+If argument[0] was less than argument [1], execute argument[0], else argument[1]
+"1 07"
+Declare an array of argument[0] 32-bit integers named - numerically - by argument[1].
+"837"
+Use variable named argument[0], indexed by argument[1].
+"119 "
+Throw error to last seen "61 8" loop so that it can cease.
+
+# safe function name
+
+11digit.txt has usable list names context. if you need to define some lists, use these strings for your list variables.

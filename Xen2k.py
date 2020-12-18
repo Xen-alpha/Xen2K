@@ -9,7 +9,7 @@
 import random, sys
 
 # no comment from here on.
-VERSION = "PSI"
+VERSION = "PSI 0.0.1"
 
 def isWhitespace(c):
     return (c == '-') or (c == '\r') or (c == '\n') or ((c >= 'A') and (c <= 'Z') and (c != 'E') and (c != 'S'))
@@ -22,12 +22,19 @@ def digit(c):
         return ord(c) - ord('0')
     return 10
 
+class BreakLoop(Exception):
+    pass
+
+class StopProgram(Exception):
+    def __str__(self):
+        return "Program Terminated"
+
 class java2k:
     def __init__(self):
         self.strict = False
         self.resultThrowError = False
         self.functions = {
-            1001 : 
+            # 1001 : self.DEFPROG # define init function and loop function
             1008 : self.VARUSE, # get arg0[arg1]
             1561 : self.SECURE, # throw error in Xen2K
             1568 : self.DIV,
@@ -70,7 +77,8 @@ class java2k:
             
             try:
                 self.invoke(instruction)
-            except StopIteration:
+            except StopProgram as e:
+                print(e)
                 break
         
         if not self.outcCalled:
@@ -99,7 +107,6 @@ class java2k:
             raise "ERROR, '%s' is not a valid function ID (context: %s)" % (token, str(tokens[offset-4:offset+4]))
     
     def set(self, value):
-        self.resultIsRandom = False
         self.result = value
         return self.result
     
@@ -147,14 +154,14 @@ class java2k:
         return self.set( b )
 
     def STOP(self, a, b):
-        raise StopIteration
+        raise StopProgram
                
     def WHILE(self, args):
         while True:
-            self.set(self.arg(a))
-            if self.resultThrowError:
+            try:
+                self.set(self.arg(a))
+            except BreakLoop:
                 self.set(self.arg(b))
-                self.resultThrowError = False
                 break
     # 7980 : self.CMP, # compare arg0 and arg1 -> use this with 7931
     def CMP(self, a, b):
@@ -187,8 +194,7 @@ class java2k:
         return self.set( self.variables[a][b] )
     # 1561: self.SECURE # do the break in 
     def SECURE(self, a, b):
-        self.resultThrowError = True
-        return
+        raise BreakLoop
     def tokenize(self, data):            
         result = []
         number = 0
