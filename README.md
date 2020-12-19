@@ -11,38 +11,68 @@ There are built-in functions comes from original Java2K in that range.
 
 ----
 "function name"
+
 description
 ----
 
 "125 "
+
 Add argument [0] to argument [1]
+
 "11 6"
+
 Divide argument [0] by argument [1]
+
 "12 4"
+
 Subtract argument [1] from argument [0]
+
 "131 "
+
 Multiply argument [0] with argument [1]
+
 "13 2"
+
 NAND argument[0] with argument[1]
+
 "16  "
+
 [two spaces] Assign argument[0] to argument[1]
+
 "1 1 "
+
 This function will output argument [0] as single ascii character
+
 "1 00"
+
 Exit program.
+
 "61 8"
+
 Loop forever, executing argument[0]. If the instruction fails, argument[1] is executed instead.
+
 "5  5"
+
 Compare argument[0], argument[1]
+
 "5 60"
+
 If both arguments last compared were equal, execute argument[0], else argument[1]
+
 "5 67"
+
 If argument[0] was less than argument [1], execute argument[0], else argument[1]
+
 "1 07"
+
 Declare an array of argument[0] 32-bit integers named - numerically - by argument[1].
+
 "837"
+
 Use variable named argument[0], indexed by argument[1].
+
 "119 "
+
 Throw error to last seen "61 8" loop so that it can cease. Parameters of this function will be ignored.
 
 # safe list name
@@ -59,6 +89,6 @@ Functions must be defined in a line with prefix "! ". There are two sample funct
 
 You can use user-defined functions in header.txt with this phrase.
 
->(function index)<
+    >(function index)<
 
 Note that the (function index) must be the result of a built-in caculation. The >< part will be replaced with the user-defined function.
