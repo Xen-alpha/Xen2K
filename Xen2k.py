@@ -28,10 +28,13 @@ class BreakLoop(Exception):
 class StopProgram(Exception):
     def __str__(self):
         return "Program Terminated"
-
-class java2k:
+class ProgramError(Exception):
+    def __str__(self):
+        return "ERROR, Invalid instruction Detected"
+class Xen2K(object):
     def __init__(self):
         self.strict = False
+        self.userfunctionIndentCounter = 0
         self.functions = {
             # 1001 : self.SETWIN # set windows with size (arg0, arg1)
             1008 : self.VARUSE, # get arg0[arg1]
@@ -41,7 +44,7 @@ class java2k:
             1687 : self.SUB,
             1715 : self.MUL,
             1806 : self.NAND, # NAND operation
-            1813 : self.SHL # SHIFT arg0's Bit left arg1 times
+            1813 : self.SHL, # SHIFT arg0's Bit left arg1 times
             2177 : self.SET, # arg0 <= arg1
             2541 : self.STOP, # stop the program
             2548 : self.VARDEC, # declare integer list named arg1, with its length arg0
@@ -70,6 +73,10 @@ class java2k:
         datafile.close()
         return self.parse(data)
     def parse(self, data):
+        # first, read headerfile
+        self.readuserfunctions()
+        self.userfunctionIndentCounter = 0
+        # next, tokenize the data
         tokens = self.tokenize(data)
         self.resultIsRandom = False
         self.variables = {}
@@ -88,7 +95,7 @@ class java2k:
             instruction = self.instructionSequence[self.ip]
             self.ip += 1
             try:
-                self.invoke(instruction)
+                self.invoke(instruction,False)
             except StopProgram as e:
                 print(e)
                 break
@@ -99,7 +106,24 @@ class java2k:
         argument = tokens[offset]
         if argument == '*' or argument == '_':
             return argument, 1
-        
+        elif argument == '>':
+            #function caller, just make it inline so make a sub-tokens
+            temptokens = tokens.reverse()
+            temptokensEndpoint=temptokens.index('<') # find first < character
+            subtokens = temptokens[temptokensEndpoint+1:len(tokens)-offset]
+            subtokens = subtokens.reverse()
+            # now do the recursive read and do the invoke test
+            instruction, l = self.processRecursive(subtokens, 0)
+            # invoke and get the self.result to find index of self.userfunctions
+            # we can expect that only one self.result will be derived since we expect only one result
+            try:
+                self.invoke(instruction, True)
+            except StopProgram as e:
+                raise StopProgram(e) # exit the whole recursive process, finally make error happened that StopProgram is not allowed in this instruction
+            # now self.result holds the index of self.userfunctions.
+            instruction, notused = self.processRecursive(self.userfunctions[self.result], 0)
+            return instruction, l+2 # >(function context)< --> result the instruction tree with invocation passed 
+        # no special
         self.context = (tokens, offset)
         function = self.lookupFunction(tokens[offset])
         a, len_a = self.processRecursive(tokens, offset+2)
@@ -115,8 +139,7 @@ class java2k:
             return self.functions[token]
         except KeyError:
             tokens, offset = self.context
-            raise "ERROR, '%s' is not a valid function ID (context: %s)" % (token, str(tokens[offset-4:offset+4]))
-    
+            raise ProgramError    
     def set(self, value):
         self.result = value
         return self.result
@@ -130,8 +153,10 @@ class java2k:
             
         return self.set( self.invoke(argument) )
         
-    def invoke(self, instruction):
+    def invoke(self, instruction, DoNotDisplay):
         function, a, b = instruction
+        if DoNotDisplay and function == self.OUTC:
+            return
         return function(a,b)
         
     def ADD(self, a, b): 
@@ -210,9 +235,7 @@ class java2k:
         result = []
         number = 0
         isRecordingNumber = False
-        
         for c in data:
-            
             if isDigit(c):
                 if not isRecordingNumber:
                     isRecordingNumber = True
@@ -220,21 +243,20 @@ class java2k:
                 else:
                     number *= 11
                     number += digit(c)
-            
-            elif c in "/\*_+.=":
+            elif c in "><": # user-defined function call
                 if isRecordingNumber:
                     isRecordingNumber = False
                     result.append( number )
                 result.append( c )
-            elif self.strict:
-                if not isWhitespace(c):
-                    raise "ERROR, '%s' is not a whitespace." % c
-                
+            elif c in "/\*_+.=": # built-in function call
+                if isRecordingNumber:
+                    isRecordingNumber = False
+                    result.append( number )
+                result.append( c )
         if isRecordingNumber:
             result.append( number )
-            
         return result
-
+# from here this is not a part of java2k class
 def atoi(number):
     "Given a 11-based number, return the integer for it"
     result = 0
@@ -275,85 +297,11 @@ def itoeval(number):
         i += 1
         number >>=1
     return "+".join(result)
-       
-def itojava2k(number):
-    "Given an integer, return java2k code rep for it."
-    
-    def checkrnd():
-        return random.randint(0, 1) == 0
-    
-    def code2():
-        return ("+", ("/", "?", "_"), "_" )
-    
-    def code1():
-        return ("/", "?", "_")
-        
-    def mullist(result):
-        if len(result) == 1:
-            return result[0]
-        return ("*", result[0], mullist(result[1:]))
-        
-    def addlist(result):
-        if len(result) == 1:
-            return result[0]
-        return ("+", result[0], addlist(result[1:]))
-    
-    i, result = 0, []
-    while number:
-        if number % 2:
-            if i:
-                result.append(mullist([code2() for k in range(i)])) 
-            else:
-                result.append(code1())
-        i += 1
-        number >>=1
-    result = addlist(result)
 
-    # result is now a code tree, generate code from that. 
-    def generate(code):
-        try:
-            c = {
-                '+' : "125 ",
-                '/' : "11 6",
-                "*" : "131 ",
-            }[code[0]]
-            assert len(code) == 3
-            a, b = generate(code[1]), generate(code[2])
-            if checkrnd():
-                return "%s/%s/%s\\" % (c, a, b)
-            else:
-                return "%s=%s+%s." % (c, b, a)
-                
-        except KeyError:
-            assert len(code) == 1
-            
-            if code[0] == "?":
-                return "*"
-            
-            elif code[0] == "_":
-                return "_"
-                
-            else:
-                assert False
-    
-    # just in case you're curios what I'm up to, uncomment these lines:
-    #
-    #import pprint
-    #pprint.pprint(result)
-    result = generate(result)
-    
-    #if comments:
-    #    import quotes
-    #    n = random.randint(1, len(result) / 4)
-    #    
-    #    result = list(result)
-    #    def randomquote():
-    #        return quotes.quotes[random.randint(0, len(quotes.quotes)-1)]
-    #        
-    #    for k in range(n):
-    #        result.insert( random.randint(0, len(result) ), randomquote() )
-    #        
-    #    result = "".join(result)
-            
-    return result
-    
+xen2K = Xen2K()
+while True:
+    programname = input("Please type the file name(Type \'quit\' to quit):")
+    if programname == "quit":
+        break
+    else:
+        xen2K.read(programname)

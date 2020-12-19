@@ -54,3 +54,11 @@ Throw error to last seen "61 8" loop so that it can cease. Parameters of this fu
 User-defined functions will go into header.txt
 
 Functions must be defined in a line with prefix "! ". There are two sample functions inside the header file. You can erase them and make some new ones
+
+# user-defined functions
+
+You can use user-defined functions in header.txt with this phrase.
+
+>(function index)<
+
+Note that the (function index) must be the result of a built-in caculation. The >< part will be replaced with the user-defined function.
