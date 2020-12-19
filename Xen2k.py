@@ -32,9 +32,8 @@ class StopProgram(Exception):
 class java2k:
     def __init__(self):
         self.strict = False
-        self.resultThrowError = False
         self.functions = {
-            # 1001 : self.DEFPROG # define init function and loop function
+            # 1001 : self.SETWIN # set windows with size (arg0, arg1)
             1008 : self.VARUSE, # get arg0[arg1]
             1561 : self.SECURE, # throw error in Xen2K
             1568 : self.DIV,
@@ -43,47 +42,59 @@ class java2k:
             1715 : self.MUL,
             1806 : self.NAND, # NAND operation
             1813 : self.SHL # SHIFT arg0's Bit left arg1 times
-            2177 : self.SET, # arg1 = arg0
+            2177 : self.SET, # arg0 <= arg1
             2541 : self.STOP, # stop the program
             2548 : self.VARDEC, # declare integer list named arg1, with its length arg0
-            2562 : self.OUTC, # print ascii code of arg0
+            2562 : self.OUTC, # print ascii code of arg0(not working on windows mode)
             7931 : self.IFEQ, # last compared was equal -> execute arg0, else -> execute arg1
             7938 : self.IFLT, # arg0 < arg1 -> execute arg0, else arg1
             7980 : self.CMP, # compare arg0 and arg1 -> use this with 7931
             8225 : self.WHILE, # infinite loop with execute arg0, excute arg1 if error occurred
         }
-
+        self.userfunctions = [] # function token list derived from header.txt will be saved in here
+    def readuserfunctions(self):
+        self.userfunctions = []
+        datafile = open("header.txt")
+        data = datafile.read()
+        if data != "":
+            functiondata = data.split('!')
+            del functiondata[0] # removing useless string
+            if len(functiondata) > 0:
+                for func in functiondata:
+                    tokens = self.tokenize(func)
+                    self.userfunctions.append(tokens)
+        datafile.close()
     def read(self, filename):
-        return self.parse(open(filename).read())
-        
+        datafile = open(filename)
+        data = datafile.read()
+        datafile.close()
+        return self.parse(data)
     def parse(self, data):
         tokens = self.tokenize(data)
         self.resultIsRandom = False
         self.variables = {}
         instructionSequence = []
-        # parse the instructions
+        # parse the instructions in tokens
         offset = 0
         while offset < len(tokens):
             instruction, l = self.processRecursive(tokens, offset)
             instructionSequence.append( instruction )
             offset += l
-        # Now we have parsed data of program. Execute it
+        # Now we have parsed data of program. Execute it.
         self.ip = 0 # initialize the instructor pointer
         self.outcCalled = False
         self.instructionSequence = instructionSequence
         while self.ip < len(self.instructionSequence):
             instruction = self.instructionSequence[self.ip]
             self.ip += 1
-            
             try:
                 self.invoke(instruction)
             except StopProgram as e:
                 print(e)
                 break
-        
         if not self.outcCalled:
             print(self.result)
-        
+    
     def processRecursive(self, tokens, offset):
         argument = tokens[offset]
         if argument == '*' or argument == '_':
@@ -215,7 +226,6 @@ class java2k:
                     isRecordingNumber = False
                     result.append( number )
                 result.append( c )
-            
             elif self.strict:
                 if not isWhitespace(c):
                     raise "ERROR, '%s' is not a whitespace." % c

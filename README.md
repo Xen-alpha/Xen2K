@@ -43,8 +43,14 @@ Declare an array of argument[0] 32-bit integers named - numerically - by argumen
 "837"
 Use variable named argument[0], indexed by argument[1].
 "119 "
-Throw error to last seen "61 8" loop so that it can cease.
+Throw error to last seen "61 8" loop so that it can cease. Parameters of this function will be ignored.
 
-# safe function name
+# safe list name
 
-11digit.txt has usable list names context. if you need to define some lists, use these strings for your list variables.
+11digit.txt has usable list names context. if you need to define some lists, check these strings for your list variables.
+
+# header.txt
+
+User-defined functions will go into header.txt
+
+Functions must be defined in a line with prefix "! ". There are two sample functions inside the header file. You can erase them and make some new ones
