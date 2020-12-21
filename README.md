@@ -37,13 +37,21 @@ Multiply argument [0] with argument [1]
 
 NAND argument[0] with argument[1]
 
+"13 9"
+
+Shift argument[0]'s bits left for argument[1](number) times (you can make any 32-bit integer at most within 95 operations including using this function, how useful...)
+
 "16  "
 
-[two spaces] Assign argument[0] to argument[1]
+[two spaces] Assign argument[0] to argument[1], Note that this works on an array's element.
 
 "1 1 "
 
-This function will output argument [0] as single ascii character
+This function will output argument [0] as single ASCII character
+
+"1 26"
+
+This function will output a string of character list named argument[0](The character inside list is not limited to ASCII)
 
 "1 00"
 
@@ -67,7 +75,7 @@ If argument[0] was less than argument [1], execute argument[0], else argument[1]
 
 "1 07"
 
-Declare an array of argument[0] 32-bit integers named - numerically - by argument[1].
+Declare an array of argument[0] elements named - numerically - by argument[1].
 
 "837"
 

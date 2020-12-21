@@ -34,25 +34,28 @@ class ProgramError(Exception):
 class Xen2K(object):
     def __init__(self):
         self.strict = False
-        self.userfunctionIndentCounter = 0
+        self.lastUse = 0
         self.functions = {
             # 1001 : self.SETWIN # set windows with size (arg0, arg1)
-            1008 : self.VARUSE, # get arg0[arg1]
-            1561 : self.SECURE, # throw error in Xen2K
-            1568 : self.DIV,
-            1638 : self.ADD,
-            1687 : self.SUB,
-            1715 : self.MUL,
-            1806 : self.NAND, # NAND operation
-            1813 : self.SHL, # SHIFT arg0's Bit left arg1 times
-            2177 : self.SET, # arg0 <= arg1
-            2541 : self.STOP, # stop the program
-            2548 : self.VARDEC, # declare integer list named arg1, with its length arg0
-            2562 : self.OUTC, # print ascii code of arg0(not working on windows mode)
-            7931 : self.IFEQ, # last compared was equal -> execute arg0, else -> execute arg1
-            7938 : self.IFLT, # arg0 < arg1 -> execute arg0, else arg1
-            7980 : self.CMP, # compare arg0 and arg1 -> use this with 7931
-            8225 : self.WHILE, # infinite loop with execute arg0, excute arg1 if error occurred
+            1008 : self.VARUSE, # "837": get arg0[arg1]
+            # 1015 : self.PUSH # "843": Push current self.result to self.resultlist
+            # 1022 : self.POP # "84 ": Pop the self.result from self.resultlist
+            1561 : self.SECURE, # "119 ": throw error in Xen2K
+            1568 : self.DIV, # "11 6"
+            1638 : self.ADD, # "125 "
+            1687 : self.SUB, # "12 4"
+            1715 : self.MUL, # "131 "
+            1806 : self.NAND, # "13 2": NAND operation
+            1813 : self.SHL, # "13 9": SHIFT arg0's Bit left arg1 times
+            2177 : self.SET, # "16  " : arg0 <= arg1
+            2541 : self.STOP, # "1 00": stop the program
+            2548 : self.VARDEC, # "1 07" : declare integer list named arg1, with its length arg0
+            2562 : self.OUTC, # "1 1 " : print ascii code of arg0(not working on windows mode)
+            2569 : self.OUTSTR # "1 26": print ascii code array of arg0(not working on windows mode)
+            7931 : self.IFEQ, # "5 60" : last compared was equal -> execute arg0, else -> execute arg1
+            7938 : self.IFLT, # "5 67" : arg0 < arg1 -> execute arg0, else arg1
+            7980 : self.CMP, # "5  5" : compare arg0 and arg1 -> use this with 7931
+            8225 : self.WHILE, # "61 8" : infinite loop with execute arg0, excute arg1 if error occurred
         }
         self.userfunctions = [] # function token list derived from header.txt will be saved in here
     def readuserfunctions(self):
@@ -61,7 +64,8 @@ class Xen2K(object):
         data = datafile.read()
         if data != "":
             functiondata = data.split('!')
-            del functiondata[0] # removing useless string
+            if len(functiondata) > 0:
+                del functiondata[0] # removing useless string
             if len(functiondata) > 0:
                 for func in functiondata:
                     tokens = self.tokenize(func)
@@ -75,10 +79,10 @@ class Xen2K(object):
     def parse(self, data):
         # first, read headerfile
         self.readuserfunctions()
-        self.userfunctionIndentCounter = 0
         # next, tokenize the data
         tokens = self.tokenize(data)
         self.resultIsRandom = False
+        self.resultlist = []
         self.variables = {}
         instructionSequence = []
         # parse the instructions in tokens
@@ -116,10 +120,7 @@ class Xen2K(object):
             instruction, l = self.processRecursive(subtokens, 0)
             # invoke and get the self.result to find index of self.userfunctions
             # we can expect that only one self.result will be derived since we expect only one result
-            try:
-                self.invoke(instruction, True)
-            except StopProgram as e:
-                raise StopProgram(e) # exit the whole recursive process, finally make error happened that StopProgram is not allowed in this instruction
+            self.result = self.arg(instruction, True)
             # now self.result holds the index of self.userfunctions.
             instruction, notused = self.processRecursive(self.userfunctions[self.result], 0)
             return instruction, l+2 # >(function context)< --> result the instruction tree with invocation passed 
@@ -144,19 +145,19 @@ class Xen2K(object):
         self.result = value
         return self.result
     
-    def arg(self, argument):
+    def arg(self, argument, DoNotDisplay = False):
         if argument == '*':
             return self.set( random.randint(0, 12345) )
             
         elif argument == '_':
             return self.result
             
-        return self.set( self.invoke(argument) )
+        return self.set( self.invoke(argument, DoNotDisplay) )
         
-    def invoke(self, instruction, DoNotDisplay):
+    def invoke(self, instruction, DoNotDisplay == False):
         function, a, b = instruction
         if DoNotDisplay and function == self.OUTC:
-            return
+            return self.set(self.arg(a))
         return function(a,b)
         
     def ADD(self, a, b): 
@@ -173,6 +174,10 @@ class Xen2K(object):
         
     def OUTC(self, a, b): 
         sys.stdout.write( chr( self.set( self.arg(a) ) & 0x7F ) )
+        self.outcCalled = True
+    def OUTSTR(self, a, b):
+        print(str(self.variables[self.arg(a)])) # OK, Only Ascii can be printed
+        self.set(self.variables[self.arg(a)])
         self.outcCalled = True
     # 1806 : self.NAND, # NAND operation
     def NAND(self, a, b):
