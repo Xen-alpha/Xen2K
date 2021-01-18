@@ -9,7 +9,7 @@
 import random, sys
 
 # no comment from here on.
-VERSION = "PSI 0.0.1"
+VERSION = "PSI 0.1.0"
 
 def isWhitespace(c):
     return (c == '-') or (c == '\r') or (c == '\n') or ((c >= 'A') and (c <= 'Z') and (c != 'E') and (c != 'S'))
