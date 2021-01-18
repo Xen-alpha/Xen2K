@@ -51,7 +51,7 @@ class Xen2K(object):
             2541 : self.STOP, # "1 00": stop the program
             2548 : self.VARDEC, # "1 07" : declare integer list named arg1, with its length arg0
             2562 : self.OUTC, # "1 1 " : print ascii code of arg0(not working on windows mode)
-            2569 : self.OUTSTR # "1 26": print ascii code array of arg0(not working on windows mode)
+            2569 : self.OUTSTR, # "1 26": print ascii code array of arg0(not working on windows mode)
             7931 : self.IFEQ, # "5 60" : last compared was equal -> execute arg0, else -> execute arg1
             7938 : self.IFLT, # "5 67" : arg0 < arg1 -> execute arg0, else arg1
             7980 : self.CMP, # "5  5" : compare arg0 and arg1 -> use this with 7931
