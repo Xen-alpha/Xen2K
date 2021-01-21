@@ -85,20 +85,98 @@ function Xen2K() {
         return this.parse(data);
 	};
 	this.parse = function(data){
-	}
+        var tokens = this.tokenize(data);
+        this.resultIsRandom = False;
+        this.resultlist = [];
+        this.variables = {};
+        var instructionSequence = [];
+        var offset = 0
+        while (offset < tokens.length) {
+            var instructionInfo = this.processRecursive(tokens, offset)
+            instructionSequence.push( instructionInfo.instruction )
+            offset += instructionInfo.l
+        }
+        this.ip = 0 // initialize the instructor pointer
+        this.outcCalled = false;
+        this.instructionSequence = instructionSequence;
+        while (this.ip < this.instructionSequence.length) {
+            var instruction = this.instructionSequence[this.ip];
+            this.ip += 1;
+            this.invoke(instruction,false);
+        }
+        if (!this.outcCalled)
+            document.getElementById("mw-content-text").innerText += this.result;
+	};
 	this.processRecursive = function(tokens,offset){
-	}
+        var argument = tokens[offset]
+        if (argument === '*' || argument === '_')
+            return {instruction: argument, l: 1};
+        else if (argument === '>') {
+            //function caller, just make it inline so make a sub-tokens
+            temptokens = tokens.reverse();
+            temptokensEndpoint=temptokens.index('<'); // find first < character
+            subtokens = temptokens.splice(temptokensEndpoint+1,len(tokens)-offset);
+            subtokens = subtokens.reverse();
+            // now do the recursive read and do the invoke test
+            var instructionInfo = self.processRecursive(subtokens, 0);
+            // invoke and get the self.result to find index of self.userfunctions
+            // we can expect that only one self.result will be derived since we expect only one result
+            self.result = self.arg(instructionInfo.instruction, true);
+            // now self.result holds the index of self.userfunctions.
+            instructionInfo_Inner = self.processRecursive(self.userfunctions[self.result], 0);
+            return {instruction: instructionInfo_Inner.instruction, l:instructionInfo.l+2} // >(function context)< --> result the instruction tree with invocation passed 
+        }
+        // no special
+        this.context = (tokens, offset);
+        var function_context = this.lookupFunction(tokens[offset]);
+        instruction_a = this.processRecursive(tokens, offset+2);
+        instruction_b = this.processRecursive(tokens, offset+len_a+3);
+        len_combined = len_a+len_b+4
+        if (tokens[offset+1] == '/')
+            return {instruction: [function_context, a, b], l: len_combined}
+        else
+            return {instruction: [function_context, b, a], l: len_combined}
+	};
 	this.lookupFunction = function(token){
-	}
-	this.set = function(value){}
-	this.arg= function(argument, DoNotDisplay = false){}
-	this.invoke= function(instruction, DoNotDisplay = false){}
-	this.ADD= function(a, b){}
-	this.DIV= function(a, b){}
-	this.SUB= function(a, b){}
-	this.MUL= function(a, b){}
-	this.OUTC= function(a, b){}
-	this.OUTSTR= function(a, b){}
+        return this.functions[token];
+	};
+	this.set = function(value){
+        this.result = value;
+        return this.result;
+    };
+	this.arg= function(argument, DoNotDisplay = false){
+        if ( argument === '*')
+            return this.set( random.randint(0, 12345) );
+        else if (argument === '_')
+            return this.result;
+            
+        return this.set( this.invoke(argument, DoNotDisplay) );
+    };
+	this.invoke= function(instruction, DoNotDisplay = false){
+        let ISA = instruction;
+        if (DoNotDisplay && ISA[0] === this.functions[2562])
+            return this.set(this.arg(ISA[1]));
+        return ISA[0](ISA[1],ISA[2]);
+    };
+	this.ADD= function(a, b){
+        return self.set( self.arg(a) + self.arg(b) );
+    }
+	this.DIV= function(a, b){
+        return self.set( self.arg(a) / self.arg(b) );
+    }
+	this.SUB= function(a, b){
+        return self.set( self.arg(a) - self.arg(b) );
+    }
+	this.MUL= function(a, b){
+        return self.set( self.arg(a) * self.arg(b) );
+    }
+	this.OUTC= function(a, b){
+        document.getElementById("mw-content-text").innerText( self.set( self.arg(a) ) & 0x7F  )
+        self.outcCalled = true;
+    }
+	this.OUTSTR= function(a, b){
+
+    }
 	this.NAND= function(a, b){}
 	this.SHL= function(a, b){}
 	this.SET= function(a, b){}
