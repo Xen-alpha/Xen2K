@@ -154,7 +154,7 @@ class Xen2K(object):
             
         return self.set( self.invoke(argument, DoNotDisplay) )
         
-    def invoke(self, instruction, DoNotDisplay == False):
+    def invoke(self, instruction, DoNotDisplay = False):
         function, a, b = instruction
         if DoNotDisplay and function == self.OUTC:
             return self.set(self.arg(a))
