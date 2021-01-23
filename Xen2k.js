@@ -66,9 +66,9 @@ function Xen2K() {
 	this.readuserfunctions = function (data){
 		this.userfunctions = [];
         if (data !== ""){
-            var functiondata = data.split('!')
+            var functiondata = data.split('! ')
             if (functiondata.length > 0){
-                functiondata[0]; // removing useless empty string
+                functiondata.splice(0,1); // removing useless empty string
 			}
             if (functiondata.length > 0){
                 for (let func of functiondata) {
@@ -313,7 +313,7 @@ function Xen2K() {
                 }
                 result.push( c );
             }
-            else if ("/\*_+.=".indexOf(c) !== -1) { // built-in function call
+            else if ("/\\*_+.=".indexOf(c) !== -1) { // built-in function call
                 if (isRecordingNumber) {
                     isRecordingNumber = false;
                     result.push( number.toString() );
