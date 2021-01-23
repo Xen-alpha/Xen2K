@@ -4,11 +4,11 @@
 const VERSION = "PSI 0.1.0";
 
 function isWhitespace(c) {
-    return (c == '-') || (c == '\r') || (c == '\n') || ((c >= 'A') && (c <= 'Z') && (c != 'E') && (c != 'S'));
+    return (c === '-') || (c === '\r') || (c === '\n') || ((c >= 'A') && (c <= 'Z') && (c != 'E') && (c != 'S'));
 }
 
 function isDigit(c){
-    return (c >= '0' && c <= '9') || (c == ' ');
+    return (c >= '0' && c <= '9') || (c === ' ');
 }
 function digit(c){
     if (c >= '0' && c <= '9'){
@@ -139,7 +139,7 @@ function Xen2K() {
         instruction_a = this.processRecursive(tokens, offset+2);
         instruction_b = this.processRecursive(tokens, offset+len_a+3);
         len_combined = len_a+len_b+4
-        if (tokens[offset+1] == '/')
+        if (tokens[offset+1] === '/')
             return {instruction: [function_context, a, b], l: len_combined}
         else
             return {instruction: [function_context, b, a], l: len_combined}
@@ -221,7 +221,7 @@ function Xen2K() {
     this.CMP= function(a, b){
         a = this.arg(a);
         b = this.arg(b);
-        this.cmpEqual = a == b;
+        this.cmpEqual = a === b;
         this.cmpLess = a < b;
     }
 	this.IFEQ= function(a, b){
