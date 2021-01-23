@@ -40,6 +40,13 @@ function onChangeProgramFile(event) {
   };
 }
 //class
+function BreakLoop(Exception){
+    this.message = Exception;
+    this.name = "Break";
+}
+BreakLoop.prototype.toString = function () {
+    return this.name + ': "' + this.message + '"';
+}
 function Xen2K() {
 	// member variables/objects
     this.functions = {
@@ -118,12 +125,12 @@ function Xen2K() {
             subtokens = temptokens.splice(temptokensEndpoint+1,len(tokens)-offset);
             subtokens = subtokens.reverse();
             // now do the recursive read and do the invoke test
-            var instructionInfo = self.processRecursive(subtokens, 0);
-            // invoke and get the self.result to find index of self.userfunctions
-            // we can expect that only one self.result will be derived since we expect only one result
-            self.result = self.arg(instructionInfo.instruction, true);
-            // now self.result holds the index of self.userfunctions.
-            instructionInfo_Inner = self.processRecursive(self.userfunctions[self.result], 0);
+            var instructionInfo = this.processRecursive(subtokens, 0);
+            // invoke and get the this.result to find index of this.userfunctions
+            // we can expect that only one this.result will be derived since we expect only one result
+            this.result = this.arg(instructionInfo.instruction, true);
+            // now this.result holds the index of this.userfunctions.
+            instructionInfo_Inner = this.processRecursive(this.userfunctions[this.result], 0);
             return {instruction: instructionInfo_Inner.instruction, l:instructionInfo.l+2} // >(function context)< --> result the instruction tree with invocation passed 
         }
         // no special
@@ -159,36 +166,130 @@ function Xen2K() {
         return ISA[0](ISA[1],ISA[2]);
     };
 	this.ADD= function(a, b){
-        return self.set( self.arg(a) + self.arg(b) );
+        return this.set( this.arg(a) + this.arg(b) );
     }
 	this.DIV= function(a, b){
-        return self.set( self.arg(a) / self.arg(b) );
+        return this.set( this.arg(a) / this.arg(b) );
     }
 	this.SUB= function(a, b){
-        return self.set( self.arg(a) - self.arg(b) );
+        return this.set( this.arg(a) - this.arg(b) );
     }
 	this.MUL= function(a, b){
-        return self.set( self.arg(a) * self.arg(b) );
+        return this.set( this.arg(a) * this.arg(b) );
     }
 	this.OUTC= function(a, b){
-        document.getElementById("mw-content-text").innerText( self.set( self.arg(a) ) & 0x7F  )
-        self.outcCalled = true;
+        document.getElementById("mw-content-text").innerText +=  this.set( this.arg(a) ) & 0x7F;
+        this.outcCalled = true;
     }
 	this.OUTSTR= function(a, b){
-
+        document.getElementById("mw-content-text").innerText += this.variables[this.arg(a)].toString;
+        this.set(this.variables[this.arg(a)]);
+        this.outcCalled = True;
     }
-	this.NAND= function(a, b){}
-	this.SHL= function(a, b){}
-	this.SET= function(a, b){}
-	this.STOP= function(a, b){}
-	this.WHILE= function(args){}
-	this.CMP= function(a, b){}
-	this.IFEQ= function(a, b){}
-	this.IFLT= function(a, b){}
-	this.VARDEC= function(a, b){}
-	this.VARUSE= function(a, b){}
-	this.BREAK= function(a, b){}
-	this.tokenize= function(data){}
+	this.NAND= function(a, b){
+        a = Boolean(this.arg(a))
+        b = Boolean(this.arg(b));
+        function nand(a, b){
+            return !(a && b);
+        }
+        return this.set( nand(a, b) );
+    }
+	this.SHL= function(a, b){
+        return this.set(this.arg(a) << this.arg(b));
+    }
+	this.SET= function(a, b){
+        a = this.arg(a);
+        b = this.arg(b);
+        this.variables[this.lastUse][a] = b;
+        return this.set( b );
+    }
+	this.STOP= function(a, b){
+        throw "Program Terminated";
+    }
+	this.WHILE= function(a, b){
+        while (true) {
+            try{
+                this.set(this.arg(a));
+            }
+            catch (e) {
+                this.set(this.arg(b));
+                console.log(e);
+                break;
+            }
+        }
+    }
+    this.CMP= function(a, b){
+        a = this.arg(a);
+        b = this.arg(b);
+        this.cmpEqual = a == b;
+        this.cmpLess = a < b;
+    }
+	this.IFEQ= function(a, b){
+        a = this.arg(a);
+        b = this.arg(b);
+        if (this.cmpEqual){
+            return this.set(a);
+        }
+        else{
+            return this.set(b);
+        }
+    }
+	this.IFLT= function(a, b){
+        a = this.arg(a);
+        b = this.arg(b);
+        if (this.cmpLess)
+            return this.set(a);
+        else{
+            return this.set(b);
+        }
+    }
+	this.VARDEC= function(a, b){
+        a = this.arg(a);
+        b = this.arg(b);
+        this.variables[b] = new Array(a+1);
+        return 0;
+    }
+    this.VARUSE= function(a, b){
+        a = this.arg(a);
+        b = this.arg(b);
+        this.lastUse = a;
+        return this.set( this.variables[a][b] );
+    }
+	this.BREAK= function(a, b){
+        throw "Break Occurred"
+    }
+	this.tokenize= function(data){
+        var result = [];
+        var number = 0;
+        var isRecordingNumber = false;
+        for (var c of data)
+            if (isDigit(c)) {
+                if (!isRecordingNumber) {
+                    isRecordingNumber = true;
+                    number = digit(c);
+                }
+                else{
+                    number *= 11;
+                    number += digit(c);
+                }
+            }
+            else if ("><".indexOf(c) !== -1) { // user-defined function call
+                if (isRecordingNumber) {
+                    isRecordingNumber = false;
+                    result.append( number );
+                }
+                result.append( c );
+            }
+            else if ("/\*_+.=".indexOf(c) !== -1) // built-in function call
+                if (isRecordingNumber) {
+                    isRecordingNumber = False;
+                    result.append( number );
+                }
+                result.append( c );
+        if (isRecordingNumber)
+            result.append( number );
+        return result;
+    }
 }
 // main part
 Xen2KHandle = new Xen2K();
