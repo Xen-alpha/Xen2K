@@ -1,10 +1,4 @@
-## Java2K Interpreter
-##
-## For more information on Java2k, checkout the official webpage at
-## http://p-nand-q.com/humor/programming_languages/java2k.html
-##
-## Copyright (C) 2004-4002 by Gerson Kurz (http://p-nand-q.com). 
-## All rights reserved. Free for any use whatsoever, enjoy!
+# XEN2K 
 
 import random, sys
 
@@ -16,7 +10,7 @@ def isWhitespace(c):
 
 def isDigit(c):
     return (c >= '0' and c <= '9') or (c == ' ')
-    
+
 def digit(c):
     if c >= '0' and c <= '9':
         return ord(c) - ord('0')
@@ -28,9 +22,11 @@ class BreakLoop(Exception):
 class StopProgram(Exception):
     def __str__(self):
         return "Program Terminated"
+
 class ProgramError(Exception):
     def __str__(self):
         return "ERROR, Invalid instruction Detected"
+
 class Xen2K(object):
     def __init__(self):
         self.strict = False
@@ -58,6 +54,7 @@ class Xen2K(object):
             8225 : self.WHILE, # "61 8" : infinite loop with execute arg0, excute arg1 if error occurred
         }
         self.userfunctions = [] # function token list derived from header.txt will be saved in here
+    
     def readuserfunctions(self):
         self.userfunctions = []
         datafile = open("header.txt")
@@ -71,11 +68,13 @@ class Xen2K(object):
                     tokens = self.tokenize(func)
                     self.userfunctions.append(tokens)
         datafile.close()
+    
     def read(self, filename):
         datafile = open(filename)
         data = datafile.read()
         datafile.close()
         return self.parse(data)
+    
     def parse(self, data):
         # first, read headerfile
         self.readuserfunctions()
@@ -140,7 +139,8 @@ class Xen2K(object):
             return self.functions[token]
         except KeyError:
             tokens, offset = self.context
-            raise ProgramError    
+            raise ProgramError
+    
     def set(self, value):
         self.result = value
         return self.result
@@ -175,10 +175,12 @@ class Xen2K(object):
     def OUTC(self, a, b): 
         sys.stdout.write( chr( self.set( self.arg(a) ) & 0x7F ) )
         self.outcCalled = True
+    
     def OUTSTR(self, a, b):
         print(str(self.variables[self.arg(a)])) # OK, Only Ascii can be printed
         self.set(self.variables[self.arg(a)])
         self.outcCalled = True
+    
     # 1806 : self.NAND, # NAND operation
     def NAND(self, a, b):
         a, b = bool(self.arg(a)), bool(self.arg(b))
@@ -236,6 +238,7 @@ class Xen2K(object):
     # 1561: self.SECURE # do the break in 
     def SECURE(self, a, b):
         raise BreakLoop
+    
     def tokenize(self, data):            
         result = []
         number = 0
@@ -262,6 +265,7 @@ class Xen2K(object):
             result.append( number )
         return result
 # from here this is not a part of java2k class
+
 def atoi(number):
     "Given a 11-based number, return the integer for it"
     result = 0
