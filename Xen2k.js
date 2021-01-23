@@ -12,7 +12,7 @@ function isDigit(c){
 }
 function digit(c){
     if (c >= '0' && c <= '9'){
-        return ord(c) - ord('0');
+        return (parseInt(c) - parseInt('0')).toString();
     }
     return 10;
 }
@@ -28,6 +28,7 @@ function onChangeHeaderFile(event) {
     fileText = e.target.result;
 	Xen2KHandle.readuserfunctions(fileText);
   };
+  reader.readAsText(file);
 }
 // callback functions
 function onChangeProgramFile(event) {
@@ -38,6 +39,7 @@ function onChangeProgramFile(event) {
     fileText = e.target.result;
 	Xen2KHandle.read(fileText);
   };
+  reader.readAsText(file);
 }
 //class
 function BreakLoop(Exception){
@@ -47,30 +49,107 @@ function BreakLoop(Exception){
 BreakLoop.prototype.toString = function () {
     return this.name + ': "' + this.message + '"';
 }
+
+var command = {
+    // 1001 : this.SETSIZE // set windows with size (arg0, arg1)
+    '1008' : function(a, b){
+        a = this.arg(a);
+        b = this.arg(b);
+        this.lastUse = a;
+        return this.set( this.variables[a][b] );
+    }, // "837": get arg0[arg1]
+    '1561' : function(a, b){
+        throw "Break Occurred"
+    }, // "119 ": throw error in Xen2K
+    '1568' : function(a, b){
+        return this.set( this.arg(a) / this.arg(b) );
+    }, // "11 6"
+    '1638' : function(a, b){
+        return this.set( this.arg(a) + this.arg(b) );
+    }, // "125 "
+    '1687' : function(a, b){
+        return this.set( this.arg(a) - this.arg(b) );
+    }, // "12 4"
+    '1715' : function(a, b){
+        return this.set( this.arg(a) * this.arg(b) );
+    }, // "131 "
+    '1806' : function(a, b){
+        a = Boolean(this.arg(a))
+        b = Boolean(this.arg(b));
+        function nand(a, b){
+            return !(a && b);
+        }
+        return this.set( nand(a, b) );
+    }, // "13 2": NAND operation
+    '1813' : function(a, b){
+        return this.set(this.arg(a) << this.arg(b));
+    }, // "13 9": SHIFT arg0's Bit left arg1 times
+    '2177' : function(a, b){
+        a = this.arg(a);
+        b = this.arg(b);
+        this.variables[this.lastUse][a] = b;
+        return this.set( b );
+    }, // "16  " : arg0 <= arg1
+    '2541' : function(a, b){
+        throw "Program Terminated";
+    }, // "1 00": stop the program
+    '2548' : function(a, b){
+        a = this.arg(a);
+        b = this.arg(b);
+        this.variables[b] = new Array(a+1);
+        return 0;
+    }, // "1 07" : declare integer list named arg1, with its length arg0
+    '2562' : function(a, b){
+        document.getElementById("mw-content-text").innerText +=  this.set( this.arg(a) ) & 0x7F;
+        this.outcCalled = true;
+    }, // "1 1 " : print ascii code of arg0(not working on windows mode)
+    '2569': function(a, b){
+        document.getElementById("mw-content-text").innerText += this.variables[this.arg(a)].toString;
+        this.set(this.variables[this.arg(a)]);
+        this.outcCalled = true;
+    }, // "1 26": print ascii code array of arg0(not working on windows mode)
+    '7931': function(a, b){
+        a = this.arg(a);
+        b = this.arg(b);
+        if (this.cmpEqual){
+            return this.set(a);
+        }
+        else{
+            return this.set(b);
+        }
+    }, // "5 60" : last compared was equal -> execute arg0, else -> execute arg1
+    '7938' : function(a, b){
+        a = this.arg(a);
+        b = this.arg(b);
+        if (this.cmpLess)
+            return this.set(a);
+        else{
+            return this.set(b);
+        }
+    }, // "5 67" : arg0 < arg1 -> execute arg0, else arg1
+    '7980': function(a, b){
+        a = this.arg(a);
+        b = this.arg(b);
+        this.cmpEqual = a === b;
+        this.cmpLess = a < b;
+    }, // "5  5" : compare arg0 and arg1 -> use this with 7931
+    '8225' : function(a, b){
+        while (true) {
+            try{
+                this.set(this.arg(a));
+            }
+            catch (e) {
+                this.set(this.arg(b));
+                console.log(e);
+                break;
+            }
+        }
+    }, // "61 8" : infinite loop with execute arg0, excute arg1 if error occurred
+}
+
 function Xen2K() {
 	// member variables/objects
-    this.functions = {
-        // 1001 : this.SETSIZE // set windows with size (arg0, arg1)
-        1008 : this.VARUSE, // "837": get arg0[arg1]
-        // 1015 : 
-        // 1022 : 
-        1561 : this.BREAK, // "119 ": throw error in Xen2K
-        1568 : this.DIV, // "11 6"
-        1638 : this.ADD, // "125 "
-        1687 : this.SUB, // "12 4"
-        1715 : this.MUL, // "131 "
-        1806 : this.NAND, // "13 2": NAND operation
-        1813 : this.SHL, // "13 9": SHIFT arg0's Bit left arg1 times
-        2177 : this.SET, // "16  " : arg0 <= arg1
-        2541 : this.STOP, // "1 00": stop the program
-        2548 : this.VARDEC, // "1 07" : declare integer list named arg1, with its length arg0
-        2562 : this.OUTC, // "1 1 " : print ascii code of arg0(not working on windows mode)
-        2569 : this.OUTSTR, // "1 26": print ascii code array of arg0(not working on windows mode)
-        7931 : this.IFEQ, // "5 60" : last compared was equal -> execute arg0, else -> execute arg1
-        7938 : this.IFLT, // "5 67" : arg0 < arg1 -> execute arg0, else arg1
-        7980 : this.CMP, // "5  5" : compare arg0 and arg1 -> use this with 7931
-        8225 : this.WHILE, // "61 8" : infinite loop with execute arg0, excute arg1 if error occurred
-    }
+    this.functions = command;
 	this.userfunctions = [];
 	// member functions
 	this.readuserfunctions = function (data){
@@ -78,9 +157,9 @@ function Xen2K() {
         if (data !== ""){
             var functiondata = data.split('!')
             if (functiondata.length > 0){
-                functiondata.splice(0,1); // removing useless empty string
+                functiondata[0]; // removing useless empty string
 			}
-            if (len(functiondata) > 0){
+            if (functiondata.length > 0){
                 for (let func of functiondata) {
                     var tokens = this.tokenize(func);
                     this.userfunctions.push(tokens);
@@ -93,9 +172,9 @@ function Xen2K() {
 	};
 	this.parse = function(data){
         var tokens = this.tokenize(data);
-        this.resultIsRandom = False;
+        this.resultIsRandom = false;
         this.resultlist = [];
-        this.variables = {};
+        this.variables = [];
         var instructionSequence = [];
         var offset = 0
         while (offset < tokens.length) {
@@ -117,7 +196,7 @@ function Xen2K() {
 	this.processRecursive = function(tokens,offset){
         var argument = tokens[offset]
         if (argument === '*' || argument === '_')
-            return {instruction: argument, l: 1};
+            return {instruction: [argument], l: 1};
         else if (argument === '>') {
             //function caller, just make it inline so make a sub-tokens
             temptokens = tokens.reverse();
@@ -137,15 +216,15 @@ function Xen2K() {
         this.context = (tokens, offset);
         var function_context = this.lookupFunction(tokens[offset]);
         instruction_a = this.processRecursive(tokens, offset+2);
-        instruction_b = this.processRecursive(tokens, offset+len_a+3);
-        len_combined = len_a+len_b+4
+        instruction_b = this.processRecursive(tokens, offset+instruction_a.l+3);
+        len_combined = instruction_a.l+instruction_b.l+4;
         if (tokens[offset+1] === '/')
             return {instruction: [function_context, a, b], l: len_combined}
         else
             return {instruction: [function_context, b, a], l: len_combined}
 	};
 	this.lookupFunction = function(token){
-        return this.functions[token];
+        return this.functions.token;
 	};
 	this.set = function(value){
         this.result = value;
@@ -165,99 +244,6 @@ function Xen2K() {
             return this.set(this.arg(ISA[1]));
         return ISA[0](ISA[1],ISA[2]);
     };
-	this.ADD= function(a, b){
-        return this.set( this.arg(a) + this.arg(b) );
-    }
-	this.DIV= function(a, b){
-        return this.set( this.arg(a) / this.arg(b) );
-    }
-	this.SUB= function(a, b){
-        return this.set( this.arg(a) - this.arg(b) );
-    }
-	this.MUL= function(a, b){
-        return this.set( this.arg(a) * this.arg(b) );
-    }
-	this.OUTC= function(a, b){
-        document.getElementById("mw-content-text").innerText +=  this.set( this.arg(a) ) & 0x7F;
-        this.outcCalled = true;
-    }
-	this.OUTSTR= function(a, b){
-        document.getElementById("mw-content-text").innerText += this.variables[this.arg(a)].toString;
-        this.set(this.variables[this.arg(a)]);
-        this.outcCalled = True;
-    }
-	this.NAND= function(a, b){
-        a = Boolean(this.arg(a))
-        b = Boolean(this.arg(b));
-        function nand(a, b){
-            return !(a && b);
-        }
-        return this.set( nand(a, b) );
-    }
-	this.SHL= function(a, b){
-        return this.set(this.arg(a) << this.arg(b));
-    }
-	this.SET= function(a, b){
-        a = this.arg(a);
-        b = this.arg(b);
-        this.variables[this.lastUse][a] = b;
-        return this.set( b );
-    }
-	this.STOP= function(a, b){
-        throw "Program Terminated";
-    }
-	this.WHILE= function(a, b){
-        while (true) {
-            try{
-                this.set(this.arg(a));
-            }
-            catch (e) {
-                this.set(this.arg(b));
-                console.log(e);
-                break;
-            }
-        }
-    }
-    this.CMP= function(a, b){
-        a = this.arg(a);
-        b = this.arg(b);
-        this.cmpEqual = a === b;
-        this.cmpLess = a < b;
-    }
-	this.IFEQ= function(a, b){
-        a = this.arg(a);
-        b = this.arg(b);
-        if (this.cmpEqual){
-            return this.set(a);
-        }
-        else{
-            return this.set(b);
-        }
-    }
-	this.IFLT= function(a, b){
-        a = this.arg(a);
-        b = this.arg(b);
-        if (this.cmpLess)
-            return this.set(a);
-        else{
-            return this.set(b);
-        }
-    }
-	this.VARDEC= function(a, b){
-        a = this.arg(a);
-        b = this.arg(b);
-        this.variables[b] = new Array(a+1);
-        return 0;
-    }
-    this.VARUSE= function(a, b){
-        a = this.arg(a);
-        b = this.arg(b);
-        this.lastUse = a;
-        return this.set( this.variables[a][b] );
-    }
-	this.BREAK= function(a, b){
-        throw "Break Occurred"
-    }
 	this.tokenize= function(data){
         var result = [];
         var number = 0;
@@ -276,18 +262,18 @@ function Xen2K() {
             else if ("><".indexOf(c) !== -1) { // user-defined function call
                 if (isRecordingNumber) {
                     isRecordingNumber = false;
-                    result.append( number );
+                    result.push( number );
                 }
-                result.append( c );
+                result.push( c );
             }
             else if ("/\*_+.=".indexOf(c) !== -1) // built-in function call
                 if (isRecordingNumber) {
-                    isRecordingNumber = False;
-                    result.append( number );
+                    isRecordingNumber = false;
+                    result.push( number );
                 }
-                result.append( c );
+                result.push( c );
         if (isRecordingNumber)
-            result.append( number );
+            result.push( number );
         return result;
     }
 }
