@@ -233,12 +233,12 @@ function Xen2K() {
 		return 0;
 	} // "1 07" : declare integer list named arg1, with its length arg0
 	this.OUTC=(a, b)=>{
-		document.getElementById("mw-content-text").innerText +=  this.set( this.arg(a, false) & 0x7F);
+		document.getElementById("mw-content-text").innerText.concat(this.set( this.arg(a, false) & 0x7F));
 		this.outcCalled = true;
 		return 0;
 	} // "1 1 " : print ascii code of arg0(not working on windows mode)
 	this.OUTSTR=(a, b)=>{
-		document.getElementById("mw-content-text").innerText += this.variables[this.arg(a, false)].toString();
+		document.getElementById("mw-content-text").innerText.concat(this.variables[this.arg(a, false)].toString());
 		this.set(this.variables[this.arg(a, false)]);
 		this.outcCalled = true;
 		return 0;
