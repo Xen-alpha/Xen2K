@@ -86,7 +86,7 @@ function Xen2K() {
         this.resultlist = [];
         this.variables = [];
         this.instructionSequence = [];
-        this.SetupTree(tokens);
+        this.currentNodeList = this.SetupTree(this.currentNodeList,tokens);
 		
         this.outcCalled = false;
         this.Traverse(false);
@@ -94,9 +94,10 @@ function Xen2K() {
         if (!this.outcCalled)
             document.getElementById("mw-content-text").innerText += this.result;
 	};
-	this.SetupTree = function(tokens){
-		this.currentNodeList = [];
+	this.SetupTree = function(NodeList,tokens){
+		NodeList = [];
 		var currentNode = null;
+		var loopcount = 0;
 		var treeDepth = 0;
 		var indentcount = 0;
 		var instructioncalled = false;
@@ -141,14 +142,29 @@ function Xen2K() {
 					currentNode.name = elem;
 					instructioncalled = false;
 					break;
+				case '>': // function call
+					var functionContent = tokens.slice(loopcount, tokens.indexOf('<',loopcount));
+					var tempNodeTree = new TaskTree();
+					var functionContentTree = this.SetupTree(tempNodeTree, functionContent);
+					var ContentResult = this.invoke([functionContentTree, functionContentTree.leftBranch, functionContentTree.rightBranch], true);
+					tokens.splice(loopcount, tokens.indexOf('<',loopcount)); // delete items except '<'
+					for (var newelem of this.userfunctions[ContentResult]){
+						tokens.splice(loopcount,0,newelem);
+						loopcount += 1;
+					}
+				case '<':
+					// do nothing, because we already have passed this token 
+					break;
 				default: // instruction
 					currentNode.name = elem;
 					instructioncalled = true;
 					if (indentcount === 0){
-						this.currentNodeList.push(currentNode);
+						NodeList.push(currentNode);
 					}
 			}
+			loopcount += 1;
 		}
+		return NodeList;
 	};
 	this.Traverse = (DoNotDisplay) => {
 		for (var rootnode of this.currentNodeList){
