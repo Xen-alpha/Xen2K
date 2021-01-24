@@ -8,6 +8,8 @@ function CanvasBox (nodename, numstr) {
 	this.parentNode = null;
 }
 
+var bareNodeList = [];
+
 var Background = document.createElement('div');
 Background.id = "ide_main";
 Background.style.display = "table-row-group";
@@ -42,6 +44,16 @@ function drop_handler(ev) {
 	console.log(data);
 }
 
+function AddNodeToCanvas(NodeName) {
+	for (var node of NodeArray){
+		if (node.nodename === NodeName){
+			var sourceNode = NodeArray.indexOf(NodeName);
+			bareNodeList.push(Object.create(sourceNode));
+			break;
+		}
+	}
+}
+
 var NodeArray = [];
 NodeArray.push(new CanvasBox('VARUSE','1008'));
 NodeArray.push(new CanvasBox('BREAK','1561'));
@@ -64,6 +76,7 @@ NodeArray.push(new CanvasBox('*','*'));
 NodeArray.push(new CanvasBox('_','_'));
 for (var node of NodeArray) {
 	document.getElementById("nodelist").innerHTML += "<div class=\"nodes\" style=\"display:inline;background-color:#ecb324;margin:2px;\" draggable=\"true\">"+node.nodename+"</div>";
+
 }
 
 window.addEventListener('DOMContentLoaded', () => {
