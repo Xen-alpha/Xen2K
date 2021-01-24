@@ -1,0 +1,23 @@
+#nodelist {
+	width: 800px;
+	height: 50px;
+	background-color: yellow;
+	display: block;
+	text-align: center;
+}
+#mainplate {
+	width: 800px;
+	height: 550px;
+	background-color: #aaaaaa;
+	display: block;
+}
+#mw-content-text {
+	width: 100%;
+	display: table;
+}
+#ide_console {
+	background-color: black;
+	color: white;
+	display: block;
+	width: 800px;
+}

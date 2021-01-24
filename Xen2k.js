@@ -92,7 +92,7 @@ function Xen2K() {
         this.Traverse(false);
 
         if (!this.outcCalled)
-            document.getElementById("mw-content-text").innerText += this.result;
+            document.getElementById("ide_console").innerText = this.result;
 	};
 	this.SetupTree = function(NodeList,tokens){
 		NodeList = [];
@@ -233,12 +233,12 @@ function Xen2K() {
 		return 0;
 	} // "1 07" : declare integer list named arg1, with its length arg0
 	this.OUTC=(a, b)=>{
-		document.getElementById("mw-content-text").innerText.concat(this.set( this.arg(a, false) & 0x7F));
+		document.getElementById("ide_console").innerHTML = this.set( this.arg(a, false) & 0x7F);
 		this.outcCalled = true;
 		return 0;
 	} // "1 1 " : print ascii code of arg0(not working on windows mode)
 	this.OUTSTR=(a, b)=>{
-		document.getElementById("mw-content-text").innerText.concat(this.variables[this.arg(a, false)].toString());
+		document.getElementById("ide_console").innerHTML =this.variables[this.arg(a, false)].toString();
 		this.set(this.variables[this.arg(a, false)]);
 		this.outcCalled = true;
 		return 0;
@@ -351,9 +351,11 @@ var Xen2KHandle = new Xen2K();
 var formElement = document.createElement('form');
 formElement.name = "uploadedFile";
 formElement.innerHTML = "<div> \
+	  <span>함수꾸러미</span>\
       <input id=\"uploadInput\" type=\"file\" name=\"myFiles\" onchange=\"onChangeHeaderFile(event)\" multiple> \
     </div> \
 	<div> \
+	  <span>코드 파일</span>\
       <input id=\"uploadProgram\" type=\"file\" name=\"myProgram\" onchange=\"onChangeProgramFile(event)\" multiple> \
     </div>"
 document.getElementById("mw-content-text").appendChild(formElement);
