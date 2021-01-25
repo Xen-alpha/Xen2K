@@ -70,6 +70,7 @@ function drop_handler(ev) {
 var BranchPoint = 0;
 var DrawingLine = [[0,0], [0,0]];
 var BranchParent = null;
+var isDragging = false;
 function canvas_mousedown_handler(e) {
 	var targetNode = null;
 	for (var node of bareNodeList){
@@ -101,6 +102,8 @@ function canvas_mousedown_handler(e) {
 			bareNodeList.push(targetNode);
 			bareNodeList.splice(bareNodeList.indexOf(targetNode),1);
 		}
+	} else {
+		isDragging = true;
 	}
 }
 function canvas_mousemove_handler(e){
@@ -118,6 +121,12 @@ function canvas_mousemove_handler(e){
 		ctx.lineWidth = 1.0;
 		ctx.stroke();
 	}
+	if (isDragging){
+		for (var node of bareNodeList) {
+			node.position[0] += e.movementX;
+			node.position[1] += e.movementY;
+		}
+	}
 }
 function canvas_mouseup_handler(e){
 	if (bareNodeList.length >0) bareNodeList[bareNodeList.length-1].dragging = false;
@@ -128,6 +137,7 @@ function canvas_mouseup_handler(e){
 				var parentindex = bareNodeList.indexOf(BranchParent);
 				if (BranchParent === node) break; // no self connect
 				targetNode = node;
+				if (targetNode.parentNode !== null) break;
 				if (BranchPoint === 1) bareNodeList[parentindex].leftBranch = node;
 				else bareNodeList[parentindex].rightBranch = targetNode;
 				targetNode.parentNode = bareNodeList[parentindex];
@@ -139,10 +149,25 @@ function canvas_mouseup_handler(e){
 	BranchParent = null;
 	BranchPoint = 0;
 	DrawingLine = [[0,0], [0,0]];
+	isDragging = false;
 }
 
 function canvas_keydown_handler(e){
-	if (e.keyCode === 46){
+	if (e.keyCode === 46){ // delete node
+		if (bareNodeList[bareNodeList.length-1].leftBranch !== null){
+			bareNodeList[bareNodeList.length-1].leftBranch.parentNode = null;
+		}
+		if (bareNodeList[bareNodeList.length-1].rightBranch !== null){
+			bareNodeList[bareNodeList.length-1].rightBranch.parentNode = null;
+		}
+		if (bareNodeList[bareNodeList.length-1].parentNode !== null){
+			if (bareNodeList[bareNodeList.length-1].parentNode.leftBranch === bareNodeList[bareNodeList.length-1]){
+				bareNodeList[bareNodeList.length-1].parentNode.leftBranch = null;
+			}
+			if (bareNodeList[bareNodeList.length-1].parentNode.rightBranch === bareNodeList[bareNodeList.length-1]){
+				bareNodeList[bareNodeList.length-1].parentNode.rightBranch = null;
+			}
+		}
 		bareNodeList.pop();
 	}
 }
@@ -177,7 +202,7 @@ Background.innerHTML = "<div id = \"nodelist\"> \
 	X2K IDE<br>\
     </div> \
 	<div id = \"mainplate\"> \
-       <canvas id=\"MainCanvas\" width=\"800px\" height=\"600px\"></canvas> \
+       <canvas id=\"MainCanvas\" width=\"800px\" height=\"550px\"></canvas> \
     </div>"
 document.getElementById("mw-content-text").appendChild(Background);
 
