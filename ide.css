@@ -12,7 +12,7 @@
 	height: 550px;
 	background-color: #aaaaaa;
 	display: block;
-	overflow: scroll;
+	overflow: visible;
 }
 #mw-content-text {
 	width: 100%;

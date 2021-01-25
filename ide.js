@@ -30,6 +30,24 @@ function CanvasBox (nodename, numstr) {
 		ctx.fillStyle = "rgba(200, 20, 240, 1)";
 		ctx.fill();
 		ctx.closePath();
+		if (this.leftBranch !== null) {
+			ctx.beginPath();
+			ctx.moveTo(this.position[0] + this.size[0] / 4, this.position[1]+ this.size[1]);
+			ctx.lineTo(this.leftBranch.position[0] + this.leftBranch.size[0] / 2, this.leftBranch.position[1]);
+			ctx.closePath();
+			ctx.strokeStyle = "black";
+			ctx.lineWidth = 1.0;
+			ctx.stroke();
+		}
+		if (this.rightBranch !== null) {
+			ctx.beginPath();
+			ctx.moveTo(this.position[0] + 3 * this.size[0] / 4, this.position[1]+ this.size[1]);
+			ctx.lineTo(this.rightBranch.position[0] + this.rightBranch.size[0] / 2, this.rightBranch.position[1]);
+			ctx.closePath();
+			ctx.strokeStyle = "black";
+			ctx.lineWidth = 1.0;
+			ctx.stroke();
+		}
 	}
 }
 
@@ -49,14 +67,34 @@ function drop_handler(ev) {
 	AddNodeToCanvas([ev.clientX, ev.clientY], data);
 }
 
+var BranchPoint = 0;
+var DrawingLine = [[0,0], [0,0]];
+var BranchParent = null;
 function canvas_mousedown_handler(e) {
 	var targetNode = null;
 	for (var node of bareNodeList){
 		if (e.clientX >= node.position[0] && e.clientX <= node.position[0] + node.size[0] && e.clientY >= node.position[1]+50 && e.clientY <= node.position[1]+node.size[1]+50 - 10) {
 			targetNode = node;
 		}
+		else if (e.clientX >= node.position[0] && e.clientX < node.position[0] + node.size[0]/2 && e.clientY >= node.position[1]+node.size[1]+50 - 10 && e.clientY <= node.position[1]+node.size[1]+50) {
+			targetNode = node;
+			BranchParent = node;
+			BranchPoint = 1;
+		}
+		else if (e.clientX >= node.position[0] + node.size[0]/2 && e.clientX < node.position[0] + node.size[0] && e.clientY >= node.position[1]+node.size[1]+50 - 10 && e.clientY <= node.position[1]+node.size[1]+50) {
+			targetNode = node;
+			BranchParent = node;
+			BranchPoint = 2;
+		}
 	}
-	if (targetNode !== null){
+	if (targetNode !== null && BranchPoint !== 0){
+		if (BranchPoint === 1)
+			DrawingLine[0] = [targetNode.position[0] + targetNode.size[0] / 4, targetNode.position[1]+ targetNode.size[1]];
+		else
+			DrawingLine[0] = [targetNode.position[0] + 3* targetNode.size[0] / 4, targetNode.position[1]+ targetNode.size[1]];
+		DrawingLine[1] = [e.clientX, e.clientY];
+	}
+	else if (targetNode !== null){
 		targetNode.SetPosition(e.clientX, e.clientY);
 		targetNode.dragging = true;
 		if (bareNodeList.indexOf(targetNode) < bareNodeList.length-1) {
@@ -69,9 +107,38 @@ function canvas_mousemove_handler(e){
 	if (bareNodeList.length > 0 && bareNodeList[bareNodeList.length-1].dragging) {
 		bareNodeList[bareNodeList.length-1].SetPosition(e.clientX, e.clientY);
 	}
+	if (BranchPoint !== 0){
+		var ctx = document.getElementById("MainCanvas").getContext("2d");
+		DrawingLine[1] = [e.clientX, e.clientY];
+		ctx.beginPath();
+		ctx.moveTo(DrawingLine[0][0], DrawingLine[0][1]);
+		ctx.lineTo(DrawingLine[1][0], DrawingLine[1][1]);
+		ctx.closePath();
+		ctx.strokeStyle = "black";
+		ctx.lineWidth = 1.0;
+		ctx.stroke();
+	}
 }
 function canvas_mouseup_handler(e){
 	if (bareNodeList.length >0) bareNodeList[bareNodeList.length-1].dragging = false;
+	var targetNode = null;
+	if (BranchPoint !== 0){
+		for (var node of bareNodeList){
+			if ( e.clientX >= node.position[0] && e.clientX <= node.position[0] + node.size[0] && e.clientY >= node.position[1]+50 && e.clientY <= node.position[1]+node.size[1]+50 - 10){
+				var parentindex = bareNodeList.indexOf(BranchParent);
+				if (BranchParent === node) break; // no self connect
+				targetNode = node;
+				if (BranchPoint === 1) bareNodeList[parentindex].leftBranch = node;
+				else bareNodeList[parentindex].rightBranch = targetNode;
+				targetNode.parentNode = bareNodeList[parentindex];
+				break;
+			}
+		}
+	}
+	//reset
+	BranchParent = null;
+	BranchPoint = 0;
+	DrawingLine = [[0,0], [0,0]];
 }
 
 function canvas_keydown_handler(e){
