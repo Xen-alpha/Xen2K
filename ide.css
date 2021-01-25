@@ -5,11 +5,14 @@
 	display: block;
 	text-align: center;
 }
+#maincanvas {
+}
 #mainplate {
 	width: 800px;
 	height: 550px;
 	background-color: #aaaaaa;
 	display: block;
+	overflow: scroll;
 }
 #mw-content-text {
 	width: 100%;
