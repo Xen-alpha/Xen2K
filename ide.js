@@ -21,12 +21,12 @@ function CanvasBox (nodename, numstr) {
 		ctx.strokeText(this.nodename,this.position[0]+50, this.position[1]+25);
 		ctx.closePath();
 		ctx.beginPath();
-		ctx.rect(this.position[0], this.position[1]+ 40, this.size[0]/2, 10);
+		ctx.rect(this.position[0], this.position[1]+ this.size[1] - 10, this.size[0]/2, 10);
 		ctx.fillStyle = "rgba(200, 20, 24, 1)";
 		ctx.fill();
 		ctx.closePath();
 		ctx.beginPath();
-		ctx.rect(this.position[0]+ this.size[0]/2, this.position[1]+ 40, this.size[0]/2, 10);
+		ctx.rect(this.position[0]+ this.size[0]/2, this.position[1]+ this.size[1] - 10, this.size[0]/2, 10);
 		ctx.fillStyle = "rgba(200, 20, 240, 1)";
 		ctx.fill();
 		ctx.closePath();
@@ -50,6 +50,29 @@ function CanvasBox (nodename, numstr) {
 		}
 	}
 }
+
+// callback functions
+function onChangeHeaderFile(event) {
+	var fileText;
+	var file = event.target.files[0];
+	var reader = new FileReader();
+	reader.onload = function(e) {
+	  fileText = e.target.result;
+	  Xen2KHandle.readuserfunctions(fileText);
+	};
+	reader.readAsText(file);
+  }
+  // callback functions
+  function onChangeProgramFile(event) {
+	var fileText;
+	var file = event.target.files[0];
+	var reader = new FileReader();
+	reader.onload = function(e) {
+	  fileText = e.target.result;
+	  Xen2KHandle.read(fileText);
+	};
+	reader.readAsText(file);
+  }
 
 function dragstart_handler(ev) {
 	// Add the target element's id to the data transfer object
@@ -78,6 +101,7 @@ function canvas_mousedown_handler(e) {
 			targetNode = node;
 		}
 		else if (e.clientX >= node.position[0] && e.clientX < node.position[0] + node.size[0]/2 && e.clientY >= node.position[1]+node.size[1]+50 - 10 && e.clientY <= node.position[1]+node.size[1]+50) {
+			
 			targetNode = node;
 			BranchParent = node;
 			BranchPoint = 1;
@@ -117,7 +141,7 @@ function canvas_mousemove_handler(e){
 		ctx.moveTo(DrawingLine[0][0], DrawingLine[0][1]);
 		ctx.lineTo(DrawingLine[1][0], DrawingLine[1][1]);
 		ctx.closePath();
-		ctx.strokeStyle = "black";
+		ctx.fillStyle = "black";
 		ctx.lineWidth = 1.0;
 		ctx.stroke();
 	}
@@ -136,11 +160,30 @@ function canvas_mouseup_handler(e){
 			if ( e.clientX >= node.position[0] && e.clientX <= node.position[0] + node.size[0] && e.clientY >= node.position[1]+50 && e.clientY <= node.position[1]+node.size[1]+50 - 10){
 				var parentindex = bareNodeList.indexOf(BranchParent);
 				if (BranchParent === node) break; // no self connect
-				targetNode = node;
-				if (targetNode.parentNode !== null) break;
-				if (BranchPoint === 1) bareNodeList[parentindex].leftBranch = node;
-				else bareNodeList[parentindex].rightBranch = targetNode;
-				targetNode.parentNode = bareNodeList[parentindex];
+				// No linking to root node
+				var cancelLink = false;
+				for (targetNode = node; targetNode.parentNode !== null; targetNode = targetNode.parentNode) {
+					if (targetNode.parentNode === null) cancelLink = true;
+				}
+				if (cancelLink) break;
+				// linking branch
+				if (BranchPoint === 1) {
+					if (bareNodeList[parentindex].leftBranch === null){
+						bareNodeList[parentindex].leftBranch = node;
+					} else {
+						bareNodeList[parentindex].leftBranch.parentNode = null;
+						bareNodeList[parentindex].leftBranch = node;
+					}
+				}
+				else {
+					if (bareNodeList[parentindex].rightBranch === null){
+						bareNodeList[parentindex].rightBranch = node;
+					} else {
+						bareNodeList[parentindex].rightBranch.parentNode = null;
+						bareNodeList[parentindex].rightBranch = node;
+					}
+				}
+				node.parentNode = bareNodeList[parentindex];
 				break;
 			}
 		}
@@ -172,7 +215,71 @@ function canvas_keydown_handler(e){
 	}
 }
 
+function exporthandler(e) {
+	if (bareNodeList.length === 0) return;
+	var rootNodeList = new Array();
+	for (var nodeElem of bareNodeList){
+		if (nodeElem.parentNode === null) rootNodeList.push(nodeElem);
+	}
+	// sort rootNodeList
+	var markedNodeIndex = 0;
+	var sortComplete = false;
+	while (!sortComplete){
+		sortComplete = true;
+		var minimum = 0;
+		for (var nodeElem of rootNodeList){
+			if (nodeElem.position[0] < rootNodeList[minimum].position[0]) {
+				minimum = rootNodeList.indexOf(nodeElem);
+				sortedComplete = false;
+			}
+		}
+		tempNode = rootNodeList[minimum];
+		rootNodeList.splice(minimum, 1, rootNodeList.splice(markedNodeIndex, 1, tempNode)[0]);
+		markedNodeIndex += 1;
+	}
+
+	resultscript = "";
+	for (var nodeElem of rootNodeList){
+		resultscript += itoa(parseInt(nodeElem.numstr));
+		resultscript += "=";
+		recursiveScriptBuilder(nodeElem.leftBranch);
+		resultscript += "+";
+		recursiveScriptBuilder(nodeElem.rightBranch);
+		resultscript+= ".";
+	}
+	//out to console
+	document.getElementById("ide_console").innerHTML = resultscript;
+}
+
 // normal function
+var resultscript = "";
+function recursiveScriptBuilder(targetnode){
+	if (targetnode.nodename === '*' || targetnode.nodename === '_') {
+		resultscript += targetnode.numstr;
+	} else {
+		//function found
+		resultscript+=itoa(parseInt(targetnode.numstr));
+		resultscript += "=";
+		recursiveScriptBuilder(targetnode.leftBranch);
+		resultscript += "+";
+		recursiveScriptBuilder(targetnode.rightBranch);
+		resultscript+= ".";
+	}
+}
+
+function itoa(number){
+    //"Given a number, return a 11-based representation of it."
+    var result = "";
+    while (number !== 0){
+        var r = number % 11;
+        if (r < 10)
+            result += r.toString() ;
+        else
+            result += " ";
+        number = Math.trunc(number / 11);
+	}
+    return result.split("").reverse().join("");
+}
 function AddNodeToCanvas(pos, NodeName) {
 	for (var node in NodeArray){
 		if (NodeArray[node].nodename === NodeName){
@@ -236,6 +343,24 @@ for (var node of NodeArray) {
 	document.getElementById("nodelist").innerHTML += "<div class=\"nodes\" style=\"display:inline;background-color:#ecb324;margin:2px;\" draggable=\"true\">"+node.nodename+"</div>";
 
 }
+
+var exportToFileButton = document.createElement("button");
+exportToFileButton.id = "exportButton";
+exportToFileButton.addEventListener("click", exporthandler);
+exportToFileButton.innerText = "Export";
+document.getElementById("ide_main").appendChild(exportToFileButton); 
+
+var formElement = document.createElement('form');
+formElement.name = "uploadedFile";
+formElement.innerHTML = "<div> \
+	  <span>함수꾸러미</span>\
+      <input id=\"uploadInput\" type=\"file\" name=\"myFiles\" onchange=\"onChangeHeaderFile(event)\" multiple> \
+    </div> \
+	<div> \
+	  <span>코드 파일</span>\
+      <input id=\"uploadProgram\" type=\"file\" name=\"myProgram\" onchange=\"onChangeProgramFile(event)\" multiple> \
+    </div>"
+document.getElementById("mw-content-text").appendChild(formElement);
 
 window.addEventListener('DOMContentLoaded', () => {
 	// Get the element by id

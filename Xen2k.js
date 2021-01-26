@@ -17,28 +17,7 @@ function digit(c){
     return 10;
 }
 
-// callback functions
-function onChangeHeaderFile(event) {
-  var fileText;
-  var file = event.target.files[0];
-  var reader = new FileReader();
-  reader.onload = function(e) {
-    fileText = e.target.result;
-	Xen2KHandle.readuserfunctions(fileText);
-  };
-  reader.readAsText(file);
-}
-// callback functions
-function onChangeProgramFile(event) {
-  var fileText;
-  var file = event.target.files[0];
-  var reader = new FileReader();
-  reader.onload = function(e) {
-    fileText = e.target.result;
-	Xen2KHandle.read(fileText);
-  };
-  reader.readAsText(file);
-}
+
 //class
 function BreakLoop(Exception){
     this.message = Exception;
@@ -345,17 +324,3 @@ function Xen2K() {
         return this.functions.get(token);
 	};
 }
-
-// main part
-var Xen2KHandle = new Xen2K();
-var formElement = document.createElement('form');
-formElement.name = "uploadedFile";
-formElement.innerHTML = "<div> \
-	  <span>함수꾸러미</span>\
-      <input id=\"uploadInput\" type=\"file\" name=\"myFiles\" onchange=\"onChangeHeaderFile(event)\" multiple> \
-    </div> \
-	<div> \
-	  <span>코드 파일</span>\
-      <input id=\"uploadProgram\" type=\"file\" name=\"myProgram\" onchange=\"onChangeProgramFile(event)\" multiple> \
-    </div>"
-document.getElementById("mw-content-text").appendChild(formElement);
