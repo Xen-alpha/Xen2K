@@ -33,6 +33,7 @@
 #ide_export {
 	width: 640px;
 	height: 480px;
+	vertical-align: top;
 	display:table-cell;
 	background-color: blueviolet;
 	overflow-y:scroll;
