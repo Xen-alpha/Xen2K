@@ -576,7 +576,7 @@ function exporthandler(e) {
 		resultscript+= ".";
 	}
 	//load result to console
-	//document.getElementById("ide_console").innerHTML = resultscript;
+	document.getElementById("ide_export").innerHTML = resultscript;
 	Xen2KHandle.read(resultscript);
 }
 
@@ -647,18 +647,24 @@ Background.id = "ide_main";
 Background.style.display = "table-row-group";
 Background.width = "800px";
 Background.innerHTML = "<div id = \"mainplate\"> \
-       <canvas id=\"MainCanvas\" width=\"800px\" height=\"550px\"></canvas> \
+       <canvas id=\"MainCanvas\" width=\"800px\" height=\"600px\"></canvas> \
     </div> \
-	<div id = \"nodelist\"> \
+	<div id = \"nodelist\" width=\"800px\"> \
 	X2K IDE<br>\
     </div> ";
 document.getElementById("mw-content-text").appendChild(Background);
 
 var consolepage = document.createElement('div');
 consolepage.id = "ide_console";
-consolepage.width = "800px";
-consolepage.innerHTML = "console";
+consolepage.width = "320px";
+consolepage.innerHTML = "console\n";
 document.getElementById("mw-content-text").appendChild(consolepage);
+
+var exportpage = document.createElement('div');
+exportpage.id = "ide_export";
+exportpage.width = "320px";
+exportpage.innerHTML = "";
+document.getElementById("mainplate").appendChild(exportpage);
 
 var NodeArray = [];
 NodeArray.push(new CanvasBox('VARUSE','1008'));

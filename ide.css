@@ -6,13 +6,16 @@
 	text-align: center;
 }
 #maincanvas {
+	width: 640px;
+	height: 480px;
+	display:table-cell;
 }
 #mainplate {
-	width: 800px;
-	height: 550px;
+	width: 640px;
+	height: 480px;
 	background-color: #aaaaaa;
-	display: block;
 	overflow: visible;
+	display:table-row;
 }
 #mw-content-text {
 	width: 100%;
@@ -21,6 +24,16 @@
 #ide_console {
 	background-color: black;
 	color: white;
-	display: block;
-	width: 800px;
+	display:table-row;
+	width: 320px;
+	height: 480px;
+	overflow-y:scroll;
+	vertical-align: top;
+}
+#ide_export {
+	width: 640px;
+	height: 480px;
+	display:table-cell;
+	background-color: blueviolet;
+	overflow-y:scroll;
 }
