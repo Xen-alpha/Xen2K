@@ -426,42 +426,44 @@ var DrawingLine = [[0,0], [0,0]];
 var BranchParent = null;
 var isDragging = false;
 function canvas_mousedown_handler(e) {
-	var targetNode = null;
-	for (var node of bareNodeList){
-		if (e.offsetX >= node.position[0] && e.offsetX <= node.position[0] + node.size[0] && e.offsetY >= node.position[1] && e.offsetY <= node.position[1]+node.size[1] - 10) {
-			targetNode = node;
-		}
-		else if (e.offsetX >= node.position[0] && e.offsetX < node.position[0] + node.size[0]/2 && e.offsetY >= node.position[1]+node.size[1] - 10 && e.offsetY <= node.position[1]+node.size[1]) {
-			targetNode = node;
-			if(node.numstr !== '*' && node.numstr !== '_') {
-				BranchParent = node;
-				BranchPoint = 1;
+	if (e.button === 0) {
+		var targetNode = null;
+		for (var node of bareNodeList){
+			if (e.offsetX >= node.position[0] && e.offsetX <= node.position[0] + node.size[0] && e.offsetY >= node.position[1] && e.offsetY <= node.position[1]+node.size[1] - 10) {
+				targetNode = node;
+			}
+			else if (e.offsetX >= node.position[0] && e.offsetX < node.position[0] + node.size[0]/2 && e.offsetY >= node.position[1]+node.size[1] - 10 && e.offsetY <= node.position[1]+node.size[1]) {
+				targetNode = node;
+				if(node.numstr !== '*' && node.numstr !== '_') {
+					BranchParent = node;
+					BranchPoint = 1;
+				}
+			}
+			else if (e.offsetX >= node.position[0] + node.size[0]/2 && e.offsetX < node.position[0] + node.size[0] && e.offsetY >= node.position[1]+node.size[1] - 10 && e.offsetY <= node.position[1]+node.size[1]) {
+				targetNode = node;
+				if(node.numstr !== '*' && node.numstr !== '_') {
+					BranchParent = node;
+					BranchPoint = 2;
+				}
 			}
 		}
-		else if (e.offsetX >= node.position[0] + node.size[0]/2 && e.offsetX < node.position[0] + node.size[0] && e.offsetY >= node.position[1]+node.size[1] - 10 && e.offsetY <= node.position[1]+node.size[1]) {
-			targetNode = node;
-			if(node.numstr !== '*' && node.numstr !== '_') {
-				BranchParent = node;
-				BranchPoint = 2;
+		if (targetNode !== null && BranchPoint !== 0){
+			if (BranchPoint === 1)
+				DrawingLine[0] = [targetNode.position[0] + targetNode.size[0] / 4, targetNode.position[1]+ targetNode.size[1]];
+			else
+				DrawingLine[0] = [targetNode.position[0] + 3* targetNode.size[0] / 4, targetNode.position[1]+ targetNode.size[1]];
+			DrawingLine[1] = [e.offsetX, e.offsetY];
+		}
+		else if (targetNode !== null){
+			targetNode.SetPosition(e.offsetX, e.offsetY);
+			targetNode.dragging = true;
+			if (bareNodeList.indexOf(targetNode) < bareNodeList.length-1) {
+				bareNodeList.push(targetNode);
+				bareNodeList.splice(bareNodeList.indexOf(targetNode),1);
 			}
+		} else {
+			isDragging = true;
 		}
-	}
-	if (targetNode !== null && BranchPoint !== 0){
-		if (BranchPoint === 1)
-			DrawingLine[0] = [targetNode.position[0] + targetNode.size[0] / 4, targetNode.position[1]+ targetNode.size[1]];
-		else
-			DrawingLine[0] = [targetNode.position[0] + 3* targetNode.size[0] / 4, targetNode.position[1]+ targetNode.size[1]];
-		DrawingLine[1] = [e.offsetX, e.offsetY];
-	}
-	else if (targetNode !== null){
-		targetNode.SetPosition(e.offsetX, e.offsetY);
-		targetNode.dragging = true;
-		if (bareNodeList.indexOf(targetNode) < bareNodeList.length-1) {
-			bareNodeList.push(targetNode);
-			bareNodeList.splice(bareNodeList.indexOf(targetNode),1);
-		}
-	} else {
-		isDragging = true;
 	}
 }
 function canvas_mousemove_handler(e){
@@ -577,7 +579,16 @@ function exporthandler(e) {
 	}
 	//load result to console
 	document.getElementById("ide_export").innerHTML = resultscript;
-	Xen2KHandle.read(resultscript);
+	var file = new Blob([resultscript], {type:"text/plain"});
+	var a = document.createElement("a"),url = URL.createObjectURL(file);
+	a.href = url;
+	a.download = "exported.x2k";
+	document.body.appendChild(a);
+	a.click();
+	setTimeout(function() {
+		document.body.removeChild(a);
+		window.URL.revokeObjectURL(url);  
+	}, 0);
 }
 
 // normal function
