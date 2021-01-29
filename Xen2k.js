@@ -41,6 +41,7 @@ function Xen2K() {
 	// member variables/objects
 	this.userfunctions = [];
 	this.currentNodeList = [];
+	this.currentCanvas = null;
 	// member functions
 	this.readuserfunctions = function (data){
 		this.userfunctions = [];
@@ -163,7 +164,18 @@ function Xen2K() {
         else  // we need recursion to traverse the instruction tree
 			return this.set( this.invoke([argument, argument.leftBranch, argument.rightBranch], DoNotDisplay) );
     };
-		// 1001 , this.SETSIZE // set windows with size (arg0, arg1)
+	
+	this.DEFCANVAS=(a,b) =>{
+		var consoleCanvas = document.createElement("canvas");
+		consoleCanvas.width = this.variables[this.arg(a, false)][0];
+		consoleCanvas.height = this.variables[this.arg(a, false)][1];
+		document.getElementById("ide-console").appendChild(consoleCanvas);
+		if (this.arg(b,false) === 0){
+			this.currentCanvas = consoleCanvas.getContext("2d");
+		} else {
+			this.currentCanvas = consoleCanvas.getContext("webgl");
+		}
+	} // "830": initialize Canvas, arg0: list of width and height; arg1: 2d(0) or webgl(1)
 	this.VARUSE=(a, b)=>{
 		a = this.arg(a, false);
 		b = this.arg(b, false);
@@ -263,6 +275,7 @@ function Xen2K() {
 	} // "61 8" : infinite loop with execute arg0, excute arg1 if error occurred
 	
 	this.command = [
+		['1001' , this.DEFCANVAS], // "830": initialize Canvas, arg0: list of width and height; arg1: 2d(0) or webgl(1)
 		['1008' , this.VARUSE], // "837": get arg0[arg1]
 		['1561' , this.BREAK],// "119 ": throw error in Xen2K
 		['1568' , this.DIV], // "11 6"
@@ -325,6 +338,29 @@ function Xen2K() {
 	this.lookupFunction = function(token){
         return this.functions.get(token);
 	};
+}
+
+function PopupMenu (menulist){
+	this.position = [0,0];
+	this.size = [120, 160];
+	this.activated = false;
+	this.MenuList = menulist; // contain [[a, fa], [b, fb], ...]
+	this.DrawMenu = (ctx) => {
+		ctx.beginPath();
+		ctx.rect(this.position[0], this.position[1], this.size[0], this.size[1]);
+		ctx.fillStyle = "rgba(120, 120, 120, 1)";
+		ctx.fill();
+		ctx.closePath();
+		for (var index in this.MenuList){
+			ctx.beginPath();
+
+			ctx.font = "10px Arial, sans-serif";
+			ctx.strokeStyle = "rgba(20, 20, 20, 1)";
+			ctx.textBaseLine = "top";
+			ctx.strokeText(this.MenuList[index][1], this.position[0], 16 + this.position[1]+index*16);
+			ctx.closePath();
+		}
+	}
 }
 
 function CanvasBox (nodename, numstr) {
@@ -426,6 +462,7 @@ var DrawingLine = [[0,0], [0,0]];
 var BranchParent = null;
 var isDragging = false;
 function canvas_mousedown_handler(e) {
+	e.preventDefault();
 	if (e.button === 0) {
 		var targetNode = null;
 		for (var node of bareNodeList){
@@ -464,6 +501,10 @@ function canvas_mousedown_handler(e) {
 		} else {
 			isDragging = true;
 		}
+		DropMenuHandle.activated = false;
+	} else if (e.button === 2) {
+		DropMenuHandle.position = [e.offsetX, e.offsetY];
+		DropMenuHandle.activated = true;
 	}
 }
 function canvas_mousemove_handler(e){
@@ -481,6 +522,7 @@ function canvas_mousemove_handler(e){
 	}
 }
 function canvas_mouseup_handler(e){
+	e.preventDefault();
 	if (bareNodeList.length >0) bareNodeList[bareNodeList.length-1].dragging = false;
 	var targetNode = null;
 	if (BranchPoint !== 0){
@@ -646,10 +688,12 @@ function renderCanvas(){
 		ctx.lineWidth = 1.0;
 		ctx.stroke();
 	}
+	if (DropMenuHandle.activated)DropMenuHandle.DrawMenu(document.getElementById("MainCanvas").getContext("2d"));
 	requestAnimationFrame(renderCanvas);
 }
 
 var Xen2KHandle = new Xen2K();
+var DropMenuHandle = new PopupMenu([['1001', "DEFCANVAS"] ])
 
 var bareNodeList = [];
 
@@ -733,6 +777,7 @@ window.addEventListener('DOMContentLoaded', () => {
 	element2.addEventListener("dragover", dragover_handler);
 
 	element2.addEventListener("mousedown", canvas_mousedown_handler);
+	element2.addEventListener("contextmenu", function(e) {e.preventDefault();return false;});
 	element2.addEventListener("mouseup",canvas_mouseup_handler);
 	element2.addEventListener("mousemove",canvas_mousemove_handler);
 	document.addEventListener("keydown", canvas_keydown_handler);
