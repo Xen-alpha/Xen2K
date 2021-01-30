@@ -476,6 +476,25 @@ function DropdownMenu (menulist){
 	}
 }
 
+function CanvasComment (nodename){
+	this.position = [0,0];
+	this.size = [50, 50];
+	this.nodename = nodename;
+	this.dragging = false;
+	this.activated = false;
+	this.SetPosition = function(x, y) {
+		this.position = [x-50, y-25];
+	}
+	this.DrawNode = function(){
+		var ctx = document.getElementById("MainCanvas").getContext("2d");
+		ctx.beginPath();
+		ctx.rect(this.position[0], this.position[1], this.size[0], this.size[1]);
+		ctx.fillStyle = "rgba(200, 200, 240, 1)";
+		ctx.fill();
+		ctx.closePath();
+	}
+}
+
 function CanvasBox (nodename, numstr) {
 	this.position = [0,0];
 	this.size = [100, 50];
@@ -570,14 +589,23 @@ function drop_handler(ev) {
 	AddNodeToCanvas([ev.offsetX, ev.offsetY], data);
 }
 
+
 var BranchPoint = 0;
 var DrawingLine = [[0,0], [0,0]];
 var BranchParent = null;
 var isDragging = false;
+var rightbuttonDragging = false;
+var rightbuttonDraggingTimer = null;
+var commentplateArray = [];
 function canvas_mousedown_handler(e) {
 	e.preventDefault();
 	if (e.button === 0) {
 		var targetNode = null;
+		for (var node of commentplateArray){
+			if (e.offsetX >= node.position[0] && e.offsetX <= node.position[0] + node.size[0] && e.offsetY >= node.position[1] && e.offsetY <= node.position[1]+node.size[1] - 10) {
+				targetNode = node;
+			}
+		}
 		for (var node of bareNodeList){
 			if (e.offsetX >= node.position[0] && e.offsetX <= node.position[0] + node.size[0] && e.offsetY >= node.position[1] && e.offsetY <= node.position[1]+node.size[1] - 10) {
 				targetNode = node;
@@ -597,41 +625,63 @@ function canvas_mousedown_handler(e) {
 				}
 			}
 		}
-		if (targetNode !== null && BranchPoint !== 0){
+		if (targetNode !== null && targetNode.constructor === CanvasBox && BranchPoint !== 0){
+			//linking branch started
 			if (BranchPoint === 1)
 				DrawingLine[0] = [targetNode.position[0] + targetNode.size[0] / 4, targetNode.position[1]+ targetNode.size[1]];
 			else
 				DrawingLine[0] = [targetNode.position[0] + 3* targetNode.size[0] / 4, targetNode.position[1]+ targetNode.size[1]];
 			DrawingLine[1] = [e.offsetX, e.offsetY];
 		}
-		else if (targetNode !== null){
+		else if (targetNode !== null && targetNode.constructor === CanvasBox){
+			//bootstrap the clicked node
 			targetNode.SetPosition(e.offsetX, e.offsetY);
 			targetNode.dragging = true;
 			if (bareNodeList.indexOf(targetNode) < bareNodeList.length-1) {
 				bareNodeList.push(targetNode);
 				bareNodeList.splice(bareNodeList.indexOf(targetNode),1);
 			}
+		} else if (targetNode !== null && targetNode.constructor === CanvasComment) {
+			targetNode.SetPosition(e.offsetX, e.offsetY);
+			targetNode.dragging = true;
+			if (commentplateArray.indexOf(targetNode) < commentplateArray.length-1) {
+				commentplateArray.push(targetNode);
+				commentplateArray.splice(commentplateArray.indexOf(targetNode),1);
+			}
 		} else if (DropMenuHandle.activated && e.offsetX >= DropMenuHandle.position[0] && e.offsetX < DropMenuHandle.position[0] + DropMenuHandle.size[0] && e.offsetY >= DropMenuHandle.position[1] && e.offsetY < DropMenuHandle.position[1] + DropMenuHandle.size[1] ) {
+			// click element inside dropdown menu
 			var clickpointY = Math.floor((e.offsetY- DropMenuHandle.position[1] ) / 16);
 			bareNodeList.push(new CanvasBox(DropMenuHandle.MenuList[clickpointY + DropMenuHandle.sightpoint][1] ,DropMenuHandle.MenuList[clickpointY][0]));
 			bareNodeList[bareNodeList.length-1].SetPosition(e.offsetX, e.offsetY);
 		}
 		else {
+			// moving background
 			isDragging = true;
 		}
 		
 		DropMenuHandle.activated = false;
 	} else if (e.button === 2) {
-		DropMenuHandle.position = [e.offsetX, e.offsetY];
-		DropMenuHandle.activated = true;
+		rightbuttonDraggingTimer = setTimeout(function (x, y) {
+			DropMenuHandle.activated = false;
+			rightbuttonDragging = true;
+			commentplateArray.push(new CanvasComment("comment" + commentplateArray.length.toString()));
+			commentplateArray[commentplateArray.length-1].position = [e.offsetX, e.offsetY];
+			commentplateArray[commentplateArray.length-1].activated = true;
+		}, 200, e.offsetX, e.offsetY);
 	}
 }
 function canvas_mousemove_handler(e){
 	if (e.button === 0) {
 		if (bareNodeList.length > 0 && bareNodeList[bareNodeList.length-1].dragging) {
 			bareNodeList[bareNodeList.length-1].SetPosition(e.offsetX, e.offsetY);
+		} else if (commentplateArray.length > 0 && commentplateArray[commentplateArray.length-1].dragging) {
+			commentplateArray[commentplateArray.length-1].SetPosition(e.offsetX, e.offsetY);;
 		}
 		if (isDragging){
+			for (var node of commentplateArray) {
+				node.position[0] += e.movementX;
+				node.position[1] += e.movementY;
+			}
 			for (var node of bareNodeList) {
 				node.position[0] += e.movementX;
 				node.position[1] += e.movementY;
@@ -640,52 +690,71 @@ function canvas_mousemove_handler(e){
 		if (BranchPoint !== 0) {
 			DrawingLine[1] = [e.offsetX, e.offsetY];
 		}
+		
+	}
+	if (e.button === 2) {
+		if (rightbuttonDragging){
+			commentplateArray[commentplateArray.length-1].size = [e.offsetX - commentplateArray[commentplateArray.length-1].position[0], e.offsetY - commentplateArray[commentplateArray.length-1].position[1]];
+		}
 	}
 }
 function canvas_mouseup_handler(e){
 	e.preventDefault();
-	if (bareNodeList.length >0) bareNodeList[bareNodeList.length-1].dragging = false;
-	var targetNode = null;
-	if (BranchPoint !== 0){
-		for (var node of bareNodeList){
-			if ( e.offsetX >= node.position[0] && e.offsetX <= node.position[0] + node.size[0] && e.offsetY >= node.position[1] && e.offsetY <= node.position[1]+node.size[1] - 10){
-				var parentindex = bareNodeList.indexOf(BranchParent);
-				if (BranchParent === node) break; // no self connect
-				// No linking to root node
-				var cancelLink = false;
-				for (targetNode = node; targetNode.parentNode !== null; targetNode = targetNode.parentNode) {
-					if (targetNode.parentNode === null) cancelLink = true;
-				}
-				if (cancelLink) break;
-				// no double-linking
-				if (node.parentNode !== null) break;
-				// linking branch
-				if (BranchPoint === 1) {
-					if (bareNodeList[parentindex].leftBranch === null){
-						bareNodeList[parentindex].leftBranch = node;
-					} else {
-						bareNodeList[parentindex].leftBranch.parentNode = null;
-						bareNodeList[parentindex].leftBranch = node;
+	if (e.button === 0) {
+		if (bareNodeList.length >0) bareNodeList[bareNodeList.length-1].dragging = false;
+		if (commentplateArray.length > 0) commentplateArray[commentplateArray.length -1].dragging = false;
+		var targetNode = null;
+		if (BranchPoint !== 0){
+			for (var node of bareNodeList){
+				if ( e.offsetX >= node.position[0] && e.offsetX <= node.position[0] + node.size[0] && e.offsetY >= node.position[1] && e.offsetY <= node.position[1]+node.size[1] - 10){
+					var parentindex = bareNodeList.indexOf(BranchParent);
+					if (BranchParent === node) break; // no self connect
+					// No linking to root node
+					var cancelLink = false;
+					for (targetNode = node; targetNode.parentNode !== null; targetNode = targetNode.parentNode) {
+						if (targetNode.parentNode === null) cancelLink = true;
 					}
-				}
-				else {
-					if (bareNodeList[parentindex].rightBranch === null){
-						bareNodeList[parentindex].rightBranch = node;
-					} else {
-						bareNodeList[parentindex].rightBranch.parentNode = null;
-						bareNodeList[parentindex].rightBranch = node;
+					if (cancelLink) break;
+					// no double-linking
+					if (node.parentNode !== null) break;
+					// linking branch
+					if (BranchPoint === 1) {
+						if (bareNodeList[parentindex].leftBranch === null){
+							bareNodeList[parentindex].leftBranch = node;
+						} else {
+							bareNodeList[parentindex].leftBranch.parentNode = null;
+							bareNodeList[parentindex].leftBranch = node;
+						}
 					}
+					else {
+						if (bareNodeList[parentindex].rightBranch === null){
+							bareNodeList[parentindex].rightBranch = node;
+						} else {
+							bareNodeList[parentindex].rightBranch.parentNode = null;
+							bareNodeList[parentindex].rightBranch = node;
+						}
+					}
+					node.parentNode = bareNodeList[parentindex];
+					break;
 				}
-				node.parentNode = bareNodeList[parentindex];
-				break;
 			}
 		}
+		//reset
+		BranchParent = null;
+		BranchPoint = 0;
+		DrawingLine = [[0,0], [0,0]];
+		isDragging = false;
+	} else if (e.button === 2) {
+		if (rightbuttonDragging) {
+			commentplateArray[commentplateArray.length-1].size = [e.offsetX - commentplateArray[commentplateArray.length-1].position[0], e.offsetY - commentplateArray[commentplateArray.length-1].position[1]];
+		}
+		else{
+			clearTimeout(rightbuttonDraggingTimer);
+			DropMenuHandle.position = [e.offsetX, e.offsetY];
+			DropMenuHandle.activated = true;
+		}
+		rightbuttonDragging = false;
 	}
-	//reset
-	BranchParent = null;
-	BranchPoint = 0;
-	DrawingLine = [[0,0], [0,0]];
-	isDragging = false;
 }
 
 function canvas_wheel_handler(e) {
@@ -805,6 +874,9 @@ function AddNodeToCanvas(pos, NodeName) {
 
 function renderCanvas(){
 	document.getElementById("MainCanvas").width = document.getElementById("MainCanvas").width; // reset the canvas
+	for (var elem of commentplateArray){
+		elem.DrawNode();
+	}
 	for (var elem of bareNodeList){
 		elem.DrawNode();
 	}
