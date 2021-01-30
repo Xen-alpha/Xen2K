@@ -1,38 +1,29 @@
 #nodelist {
-	width: 800px;
-	height: 50px;
 	background-color: yellow;
 	display: block;
 	text-align: center;
 }
 #maincanvas {
-	width: 640px;
-	height: 480px;
 	display:table-cell;
 }
 #mainplate {
-	width: 640px;
-	height: 480px;
 	background-color: #aaaaaa;
 	overflow: visible;
 	display:table-row;
 }
 #mw-content-text {
-	width: 100%;
 	display: table;
 }
 #ide_console {
 	background-color: black;
 	color: white;
 	display:table-row;
-	width: 320px;
-	height: 480px;
+	height: 250px;
 	overflow-y:scroll;
 	vertical-align: top;
 }
 #ide_export {
-	width: 640px;
-	height: 480px;
+	width: 800px;
 	vertical-align: top;
 	display:table-cell;
 	background-color: blueviolet;

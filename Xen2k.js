@@ -42,6 +42,9 @@ function Xen2K() {
 	this.userfunctions = [];
 	this.currentNodeList = [];
 	this.currentCanvas = null;
+	this.console2Canvas = false;
+	this.lastUse = 0;
+	this.variables = [];
 	// member functions
 	this.readuserfunctions = function (data){
 		this.userfunctions = [];
@@ -167,14 +170,16 @@ function Xen2K() {
 	
 	this.DEFCANVAS=(a,b) =>{
 		var consoleCanvas = document.createElement("canvas");
+		consoleCanvas.id = "consoleCanvas";
 		consoleCanvas.width = this.variables[this.arg(a, false)][0];
 		consoleCanvas.height = this.variables[this.arg(a, false)][1];
-		document.getElementById("ide-console").appendChild(consoleCanvas);
+		document.getElementById("ide_console").appendChild(consoleCanvas);
 		if (this.arg(b,false) === 0){
 			this.currentCanvas = consoleCanvas.getContext("2d");
 		} else {
 			this.currentCanvas = consoleCanvas.getContext("webgl");
 		}
+		this.console2Canvas = true;
 	} // "830": initialize Canvas, arg0: list of width and height; arg1: 2d(0) or webgl(1)
 	this.VARUSE=(a, b)=>{
 		a = this.arg(a, false);
@@ -221,10 +226,10 @@ function Xen2K() {
 		a = this.arg(a, false);
 		b = this.arg(b, false);
 		this.variables[b] = new Array(a+1);
-		return 0;
+		return this.variables[b];
 	} // "1 07" : declare integer list named arg1, with its length arg0
 	this.OUTC=(a, b)=>{
-		document.getElementById("ide_console").innerHTML += String.fromCharCode(this.set( this.arg(a, false)));
+		document.getElementById("ide_console").innerHTML += [String.fromCharCode(this.set( this.arg(a, false))), '\n'].join();
 		this.outcCalled = true;
 		return 0;
 	} // "1 1 " : print ascii code of arg0(not working on windows mode)
@@ -232,7 +237,8 @@ function Xen2K() {
 		for (var index in this.variables[this.arg(a, false)]) {
 			document.getElementById("ide_console").innerHTML += String.fromCharCode(this.variables[this.arg(a, false)][index]);
 		}
-		this.set(this.variables[this.arg(a, false)]);
+		document.getElementById("ide_console").innerHTML += '\n'
+		this.set(this.variables[this.arg(a, false)].join());
 		this.outcCalled = true;
 		return 0;
 	}// "1 26": print ascii code array of arg0(not working on windows mode)
@@ -273,10 +279,108 @@ function Xen2K() {
 			}
 		}
 	} // "61 8" : infinite loop with execute arg0, excute arg1 if error occurred
+	/**
+	*	class implementation with an array
+	*/
+	this.classMap = new Map([[0, []]]); // [name, member]
+	this.DEFCLASS = (a, b) => {
+		// a is name number and b is construction array
+		a = this.arg(a, false);
+		this.classMap.set(a, this.arg(b, false));
+		return a;
+	}
+	this.DEFCONSTRUCT= (a, b) => {
+		//a is parent class index, b is additional content Array
+		var tempArray = this.classMap.get(this.arg(a, false));
+		tempArray = tempArray.concat(this.arg(b, false));
+		return tempArray;
+	}
+	this.SETMEMBER = (a, b) => {
+		// you must call this.GETMEMBER first to execute this function
+		// a is target class member, b is source data
+		var tempArray = this.classMap.get(this.lastUse);
+		tempArray[this.arg(a, false)] = this.arg(b, false);
+		this.classMap.set(this.lastUse, tempArray);
+		return this.arg(b, false);
+	}
+	this.CALLMEMBER = (a, b) => {
+		// you must call this.GETMEMBER first to execute this function
+		// a is member name, b is parameter list
+		// return the result of member function
+		return (this.classMap.get(this.lastUse)[this.arg(a, false)])(this.arg(b, false)[0], this.arg(b, false)[1]);
+	}
+	this.GETMEMBER = (a, b) => {
+		// a is source class name, b is source member data index
+		this.lastUse = this.arg(a, false);
+		return this.classMap.get(this.arg(a, false))[this.arg(b, false)];
+	}
+	this.DRAWRECT = (a, b) => {
+		// a is left top position, b is size
+		if (this.console2Canvas && this.currentCanvas !== null) {
+			var pos = this.arg(a, false);
+			var size = this.arg(b, false);
+			this.currentCanvas.beginPath();
+			this.currentCanvas.rect(pos[0], pos[1], size[0], size[1]);
+			this.currentCanvas.closePath();
+			this.currentCanvas.strokeStyle = "white";
+			this.currentCanvas.strokeRect();
+			this.currentCanvas.closePath();
+		}
+	}
+	this.DRAWCIRCLE = (a, b) => {
+		// a is center position, b is radius
+		if (this.console2Canvas && this.currentCanvas !== null) {
+			var pos = this.arg(a, false);
+			var radius = this.arg(b, false);
+			this.currentCanvas.beginPath();
+			this.currentCanvas.arc(pos[0], pos[1], radius, 0, 2*Math.PI, true);
+			this.currentCanvas.closePath();
+			this.currentCanvas.strokeStyle = "white";
+			this.currentCanvas.stroke();
+			this.currentCanvas.closePath();
+		}
+	}
+	this.DRAWLINE = (a, b) => {
+		// both a and b are position(start, end)
+		if (this.console2Canvas && this.currentCanvas !== null) {
+			var pos = this.arg(a, false);
+			var pos2 = this.arg(b, false);
+			this.currentCanvas.beginPath();
+			this.currentCanvas.moveTo(pos[0], pos[1]);
+			this.currentCanvas.LineTo(pos2[0], pos2[1]);
+			this.currentCanvas.strokeStyle = "white";
+			this.currentCanvas.stroke();
+			this.currentCanvas.closePath();
+		}
+	}
+	this.SETTIMER = (a, b) => {
+		// a is content, b is timeout value
+		window.setTimeout( this.functions.get(a.nodeName), this.arg(b, false));
+	}
+	this.DEFCALLBACK = (a, b) => {
+		// a is event name, b is callback function
+		document.getElementById("ide_console").addEventListener(this.arg(a, false), this.functions.get(b.nodeName));
+	}
+	this.LIST2STR = (a, b) => {
+		//a is source list, b is reverse join flag
+		if (b !== 0 ) return this.set(this.arg(a, false).reverse().join());
+		else return this.set(this.arg(a, false).join())
+	}
 	
 	this.command = [
 		['1001' , this.DEFCANVAS], // "830": initialize Canvas, arg0: list of width and height; arg1: 2d(0) or webgl(1)
 		['1008' , this.VARUSE], // "837": get arg0[arg1]
+		['1015' , this.DEFCLASS],
+		['1022', this.DEFCONSTRUCT], 
+		['1029', this.SETMEMBER],
+		['1036', this.CALLMEMBER], 
+		['1043', this.GETMEMBER], 
+		['1050', this.DRAWRECT], 
+		['1057', this.DRAWCIRCLE], 
+		['1064', this.DRAWLINE], 
+		['1071', this.SETTIMER], 
+		['1078', this.DEFCALLBACK],
+		['1085', this.LIST2STR],
 		['1561' , this.BREAK],// "119 ": throw error in Xen2K
 		['1568' , this.DIV], // "11 6"
 		['1638' , this.ADD], // "125 "
@@ -340,11 +444,12 @@ function Xen2K() {
 	};
 }
 
-function PopupMenu (menulist){
+function DropdownMenu (menulist){
 	this.position = [0,0];
 	this.size = [120, 160];
 	this.activated = false;
-	this.MenuList = menulist; // contain [[a, fa], [b, fb], ...]
+	this.MenuList = menulist; // contain [[a, name], [b, name2], ...]
+	this.sightpoint = 0; // determine the visible range of MenuList (sightpoint~sightpoint + 10)
 	this.DrawMenu = (ctx) => {
 		ctx.beginPath();
 		ctx.rect(this.position[0], this.position[1], this.size[0], this.size[1]);
@@ -352,12 +457,20 @@ function PopupMenu (menulist){
 		ctx.fill();
 		ctx.closePath();
 		for (var index in this.MenuList){
+			if (index < this.sightpoint || index >= this.sightpoint+10) continue;
 			ctx.beginPath();
-
 			ctx.font = "10px Arial, sans-serif";
 			ctx.strokeStyle = "rgba(20, 20, 20, 1)";
-			ctx.textBaseLine = "top";
-			ctx.strokeText(this.MenuList[index][1], this.position[0], 16 + this.position[1]+index*16);
+			ctx.textAlign = "left";
+			ctx.strokeText(this.MenuList[index][1], this.position[0],12 + this.position[1]+(index - this.sightpoint)*16);
+			ctx.closePath();
+		}
+		// draw the scroll position
+		if (this.MenuList.length > 10){
+			ctx.beginPath();
+			ctx.rect(this.position[0] + this.size[0] - 5, this.position[1] + this.sightpoint * 16 * 10 / this.MenuList.length, 5, 160* 10 / this.MenuList.length);
+			ctx.fillStyle = "rgba(80,80,80,1)";
+			ctx.fill();
 			ctx.closePath();
 		}
 	}
@@ -498,9 +611,15 @@ function canvas_mousedown_handler(e) {
 				bareNodeList.push(targetNode);
 				bareNodeList.splice(bareNodeList.indexOf(targetNode),1);
 			}
-		} else {
+		} else if (DropMenuHandle.activated && e.offsetX >= DropMenuHandle.position[0] && e.offsetX < DropMenuHandle.position[0] + DropMenuHandle.size[0] && e.offsetY >= DropMenuHandle.position[1] && e.offsetY < DropMenuHandle.position[1] + DropMenuHandle.size[1] ) {
+			var clickpointY = Math.floor((e.offsetY- DropMenuHandle.position[1] ) / 16);
+			bareNodeList.push(new CanvasBox(DropMenuHandle.MenuList[clickpointY + DropMenuHandle.sightpoint][1] ,DropMenuHandle.MenuList[clickpointY][0]));
+			bareNodeList[bareNodeList.length-1].SetPosition(e.offsetX, e.offsetY);
+		}
+		else {
 			isDragging = true;
 		}
+		
 		DropMenuHandle.activated = false;
 	} else if (e.button === 2) {
 		DropMenuHandle.position = [e.offsetX, e.offsetY];
@@ -508,17 +627,19 @@ function canvas_mousedown_handler(e) {
 	}
 }
 function canvas_mousemove_handler(e){
-	if (bareNodeList.length > 0 && bareNodeList[bareNodeList.length-1].dragging) {
-		bareNodeList[bareNodeList.length-1].SetPosition(e.offsetX, e.offsetY);
-	}
-	if (isDragging){
-		for (var node of bareNodeList) {
-			node.position[0] += e.movementX;
-			node.position[1] += e.movementY;
+	if (e.button === 0) {
+		if (bareNodeList.length > 0 && bareNodeList[bareNodeList.length-1].dragging) {
+			bareNodeList[bareNodeList.length-1].SetPosition(e.offsetX, e.offsetY);
 		}
-	}
-	if (BranchPoint !== 0) {
-		DrawingLine[1] = [e.offsetX, e.offsetY];
+		if (isDragging){
+			for (var node of bareNodeList) {
+				node.position[0] += e.movementX;
+				node.position[1] += e.movementY;
+			}
+		}
+		if (BranchPoint !== 0) {
+			DrawingLine[1] = [e.offsetX, e.offsetY];
+		}
 	}
 }
 function canvas_mouseup_handler(e){
@@ -567,8 +688,16 @@ function canvas_mouseup_handler(e){
 	isDragging = false;
 }
 
+function canvas_wheel_handler(e) {
+	e.preventDefault();
+	if (e.offsetX >= DropMenuHandle.position[0] && e.offsetX < DropMenuHandle.position[0] + DropMenuHandle.size[0] && e.offsetY >= DropMenuHandle.position[1] && e.offsetY < DropMenuHandle.position[1] + DropMenuHandle.size[1]) {
+		if (DropMenuHandle.sightpoint > 0 && e.deltaY < 0) DropMenuHandle.sightpoint -= 1;
+		else if (DropMenuHandle.sightpoint + 10 < DropMenuHandle.MenuList.length && e.deltaY > 0) DropMenuHandle.sightpoint += 1;
+	}
+}
+
 function canvas_keydown_handler(e){
-	if (e.keyCode === 46){ // delete node
+	if (e.keyCode === 46 && bareNodeList.length > 0){ // delete node
 		if (bareNodeList[bareNodeList.length-1].leftBranch !== null){
 			bareNodeList[bareNodeList.length-1].leftBranch.parentNode = null;
 		}
@@ -673,6 +802,7 @@ function AddNodeToCanvas(pos, NodeName) {
 		}
 	}
 }
+
 function renderCanvas(){
 	document.getElementById("MainCanvas").width = document.getElementById("MainCanvas").width; // reset the canvas
 	for (var elem of bareNodeList){
@@ -693,31 +823,42 @@ function renderCanvas(){
 }
 
 var Xen2KHandle = new Xen2K();
-var DropMenuHandle = new PopupMenu([['1001', "DEFCANVAS"] ])
+var DropMenuHandle = new DropdownMenu([
+		['1001', "DEFCANVAS"], 
+		['1015' , "DEFCLASS"],
+		['1022', "DEFCONSTRUCT"], 
+		['1029', "SETMEMBER"],
+		['1036', "CALLMEMBER"], 
+		['1043', "GETMEMBER"], 
+		['1050', "DRAWRECT"], 
+		['1057', "DRAWCIRCLE"], 
+		['1064', "DRAWLINE"], 
+		['1071', "SETTIMER"], 
+		['1078', "DEFCALLBACK"],
+		['1085', "LIST2STR"]
+		]);
 
 var bareNodeList = [];
+
 
 var Background = document.createElement('div');
 Background.id = "ide_main";
 Background.style.display = "table-row-group";
-Background.width = "800px";
 Background.innerHTML = "<div id = \"mainplate\"> \
        <canvas id=\"MainCanvas\" width=\"800px\" height=\"600px\"></canvas> \
     </div> \
-	<div id = \"nodelist\" width=\"800px\"> \
-	X2K IDE<br>\
+	<div id = \"nodelist\" width=\"800px\" height=\"600px\"> \
+	Xen2K IDE<br>\
     </div> ";
 document.getElementById("mw-content-text").appendChild(Background);
 
 var consolepage = document.createElement('div');
 consolepage.id = "ide_console";
-consolepage.width = "320px";
 consolepage.innerHTML = "console\n";
 document.getElementById("mw-content-text").appendChild(consolepage);
 
 var exportpage = document.createElement('div');
 exportpage.id = "ide_export";
-exportpage.width = "320px";
 exportpage.innerHTML = "";
 document.getElementById("mainplate").appendChild(exportpage);
 
@@ -762,7 +903,7 @@ formElement.innerHTML = "<div> \
 	  <span>코드 파일</span>\
       <input id=\"uploadProgram\" type=\"file\" name=\"myProgram\" onchange=\"onChangeProgramFile(event)\" multiple> \
     </div>"
-document.getElementById("mw-content-text").appendChild(formElement);
+document.getElementById("ide_main").appendChild(formElement);
 
 window.addEventListener('DOMContentLoaded', () => {
 	// Get the element by id
@@ -780,6 +921,8 @@ window.addEventListener('DOMContentLoaded', () => {
 	element2.addEventListener("contextmenu", function(e) {e.preventDefault();return false;});
 	element2.addEventListener("mouseup",canvas_mouseup_handler);
 	element2.addEventListener("mousemove",canvas_mousemove_handler);
+	element2.addEventListener("wheel", canvas_wheel_handler);
 	document.addEventListener("keydown", canvas_keydown_handler);
 	requestAnimationFrame(renderCanvas);
+	
 });
