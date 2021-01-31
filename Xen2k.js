@@ -80,6 +80,8 @@ function Xen2K() {
 	};
 	//LoadToCanvas: Load Code Tree to canvas
 	this.LoadToCanvas = function(data) {
+		bareNodeList = [];
+		document.getElementById("MainCanvas").width = document.getElementById("MainCanvas").width;
 		var tokens = this.tokenize(data);
         this.BuildCanvasBoxTree(tokens);
 	}
