@@ -17,6 +17,20 @@ function digit(c){
     return 10;
 }
 
+function itoa(number) {
+    //"Given a number, return a 11-based representation of it."
+    var result = [];
+    while (number !== 0){
+        r = number % 11;
+        if (r < 10)
+            result.push( r.toString() );
+        else
+            result.push( ' ' );
+        number = Math.trunc(number / 11);
+	}
+    result.reverse();
+    return result.join('');
+}
 
 //class
 function BreakLoop(Exception){
@@ -29,10 +43,192 @@ BreakLoop.prototype.toString = function () {
 
 function TaskTree () {
 	this.parentNode = null;
-	this.name = null; // number name
+	this.name = null; // number name, is number
 	this.leftBranch = null;
 	this.rightBranch = null;
+	this.num = NaN; // num is index of rootNodeList
+	this.push = (data, index) => {
+		if (this.name === null) {
+			this.name = data;
+			this.num = index; 
+			return;
+		}
+		if (data < this.name) {
+			if (this.leftBranch === null)this.leftBranch = new TaskTree();
+			this.leftBranch.push(data, index);
+			return;
+		} else {
+			if (this.rightBranch  === null) this.rightBranch = new TaskTree();
+			this.rightBranch.push(data, index);
+			return;
+		}
+	}
 }
+
+
+function DropdownMenu (menulist){
+	this.position = [0,0];
+	this.size = [120, 160];
+	this.activated = false;
+	this.MenuList = menulist; // contain [[a, name], [b, name2], ...]
+	this.sightpoint = 0; // determine the visible range of MenuList (sightpoint~sightpoint + 10)
+	this.DrawMenu = (ctx) => {
+		ctx.beginPath();
+		ctx.rect(this.position[0], this.position[1], this.size[0], this.size[1]);
+		ctx.fillStyle = "rgba(120, 120, 120, 1)";
+		ctx.fill();
+		
+		ctx.closePath();
+		for (var index in this.MenuList){
+			if (index < this.sightpoint || index >= this.sightpoint+10) continue;
+			ctx.beginPath();
+			ctx.font = "10px Arial, sans-serif";
+			ctx.strokeStyle = "rgba(20, 20, 20, 1)";
+			ctx.textAlign = "left";
+			ctx.textBaseline = "top";
+			ctx.strokeText(this.MenuList[index][1], this.position[0], 4+this.position[1]+(index - this.sightpoint)*16);
+			ctx.closePath();
+		}
+		// draw the scroll position
+		if (this.MenuList.length > 10){
+			ctx.beginPath();
+			ctx.rect(this.position[0] + this.size[0] - 5, this.position[1] + this.sightpoint * 16 * 10 / this.MenuList.length, 5, 160* 10 / this.MenuList.length);
+			ctx.fillStyle = "rgba(80,80,80,1)";
+			ctx.fill();
+			ctx.closePath();
+		}
+	}
+}
+
+var DrawableObjectList = [];
+function DrawableObject (a, b, type){
+	this.a = a = parseInt(a);
+	this.b = b = parseInt(b);
+	this.type = type;
+	this.Draw = () => {
+		if (this.type === 0) {
+			if (this.console2Canvas && this.currentCanvas !== null) {
+				var pos = a;
+				var size = b;
+				this.currentCanvas.beginPath();
+				this.currentCanvas.rect(pos[0], pos[1], size[0], size[1]);
+				this.currentCanvas.fillStyle = "rgba(255, 255, 255,1)";
+				this.currentCanvas.fill();
+				this.currentCanvas.closePath();
+			}
+		} else if (this.type === 1) {
+			if (this.console2Canvas && this.currentCanvas !== null) {
+				var pos = a;
+				var radius = b;
+				this.currentCanvas.beginPath();
+				this.currentCanvas.arc(pos[0], pos[1], radius, 0, 2*Math.PI, true);
+				this.currentCanvas.strokeStyle = "rgba(255, 255, 255,1)";
+				this.currentCanvas.stroke();
+				this.currentCanvas.closePath();
+			}
+		} else if (this.type === 2) {
+			if (this.console2Canvas && this.currentCanvas !== null) {
+				var pos = a;
+				var pos2 = b;
+				this.currentCanvas.beginPath();
+				this.currentCanvas.moveTo(pos[0], pos[1]);
+				this.currentCanvas.LineTo(pos2[0], pos2[1]);
+				this.currentCanvas.fillStyle = "rgba(255, 255, 255,1)";
+				this.currentCanvas.fill();
+				this.currentCanvas.closePath();
+			}
+		}
+	}
+}
+
+function CanvasComment (nodename){
+	this.position = [0,0];
+	this.size = [50, 50];
+	this.nodename = nodename;
+	this.dragging = false;
+	this.activated = false;
+	this.SetPosition = function(x, y) {
+		this.position = [x-50, y-25];
+	}
+	this.DrawNode = function(){
+		var ctx = document.getElementById("MainCanvas").getContext("2d");
+		ctx.beginPath();
+		ctx.rect(this.position[0], this.position[1], this.size[0], this.size[1]);
+		ctx.fillStyle = "rgba(200, 200, 240, 0.5)";
+		ctx.fill();
+		ctx.closePath();
+		if (typingComment === this) {
+			ctx.beginPath();
+			ctx.fillStyle = "rgba(240, 240, 240, 1)";
+			ctx.rect(this.position[0], this.position[1], this.size[0], 16);
+			ctx.fill();
+			ctx.closePath();
+		}
+		ctx.beginPath();
+		ctx.strokeStyle = "rgba(100, 100, 20, 1)";
+		ctx.font = "16px Arial, sans-serif";
+		ctx.textBaseline = "top";
+		ctx.strokeText(this.nodename,this.position[0], this.position[1]);
+		ctx.closePath();
+	}
+}
+
+function CanvasBox (nodename, numstr) {
+	this.position = [0,0];
+	this.size = [100, 50];
+	this.nodename = nodename;
+	this.numstr = numstr;
+	this.dragging = false;
+	this.leftBranch = null;
+	this.rightBranch = null;
+	this.parentNode = null;
+	this.SetPosition = function(x, y) {
+		this.position = [x-50, y-25];
+	}
+	this.DrawNode = function(){
+		var ctx = document.getElementById("MainCanvas").getContext("2d");
+		ctx.beginPath();
+		ctx.rect(this.position[0], this.position[1], this.size[0], this.size[1]);
+		ctx.fillStyle = "rgba(200, 200, 24, 1)";
+		ctx.fill();
+		ctx.font = "10px Arial, sans-serif";
+		ctx.textAlign = "center";
+		ctx.textBaseline = "middle";
+		ctx.strokeText(this.nodename,this.position[0]+50, this.position[1]+25);
+		ctx.closePath();
+		if(this.numstr !== '*' && this.numstr !== '_') {
+			ctx.beginPath();
+			ctx.rect(this.position[0], this.position[1]+ this.size[1] - 10, this.size[0]/2, 10);
+			ctx.fillStyle = "rgba(200, 20, 24, 1)";
+			ctx.fill();
+			ctx.closePath();
+			ctx.beginPath();
+			ctx.rect(this.position[0]+ this.size[0]/2, this.position[1]+ this.size[1] - 10, this.size[0]/2, 10);
+			ctx.fillStyle = "rgba(200, 20, 240, 1)";
+			ctx.fill();
+			ctx.closePath();
+		}
+		if (this.leftBranch !== null) {
+			ctx.beginPath();
+			ctx.moveTo(this.position[0] + this.size[0] / 4, this.position[1]+ this.size[1]);
+			ctx.lineTo(this.leftBranch.position[0] + this.leftBranch.size[0] / 2, this.leftBranch.position[1]);
+			ctx.closePath();
+			ctx.strokeStyle = "black";
+			ctx.lineWidth = 1.0;
+			ctx.stroke();
+		}
+		if (this.rightBranch !== null) {
+			ctx.beginPath();
+			ctx.moveTo(this.position[0] + 3 * this.size[0] / 4, this.position[1]+ this.size[1]);
+			ctx.lineTo(this.rightBranch.position[0] + this.rightBranch.size[0] / 2, this.rightBranch.position[1]);
+			ctx.closePath();
+			ctx.strokeStyle = "black";
+			ctx.lineWidth = 1.0;
+			ctx.stroke();
+		}
+	}
+}
+
 
 // main program class
 
@@ -46,18 +242,19 @@ function Xen2K() {
 	this.variables = [];
 	// member functions
 	this.readuserfunctions = function (data){
-		this.userfunctions = [];
         if (data !== ""){
             var functiondata = data.split('! ')
+			var tempArray = [];
             if (functiondata.length > 0){
-                functiondata.splice(0,1); // removing useless empty string
-			}
-            if (functiondata.length > 0){
+				tempArray = functiondata[0].split(','); 
+				// removing useless line change
+				tempArray.pop();
                 for (let func of functiondata) {
                     var tokens = this.tokenize(func);
-                    this.userfunctions.push(tokens);
+                    tempArray = tempArray.concat(this.SetupTree(new Array(), tokens));
 				}
 			}
+			this.variables.push(tempArray);
 		}
 	};
 	this.read = function(data){
@@ -68,26 +265,21 @@ function Xen2K() {
 	this.parse = function(data){
         var tokens = this.tokenize(data);
         this.resultlist = [];
-        this.variables = [];
         this.instructionSequence = [];
         this.currentNodeList = this.SetupTree(this.currentNodeList,tokens);
 		
         this.outcCalled = false;
         this.Traverse(false);
-
-        if (!this.outcCalled)
-            document.getElementById("ide_console").innerText = String.fromCharCode(this.result);
 	};
 	//LoadToCanvas: Load Code Tree to canvas
 	this.LoadToCanvas = function(data) {
 		bareNodeList = [];
-		document.getElementById("MainCanvas").width = document.getElementById("MainCanvas").width;
 		var tokens = this.tokenize(data);
         this.BuildCanvasBoxTree(tokens);
 	}
 	this.BuildCanvasBoxTree = function (tokens){
 		var tempRootNodeList = [];
-		var currentNode = new CanvasBox("", "");
+		var currentNode = null;
 		var loopcount = 0;
 		var indentcount = 0;
 		var instructioncalled = false;
@@ -138,24 +330,15 @@ function Xen2K() {
 					currentNode.numstr = elem;
 					instructioncalled = false;
 					break;
-				case '>': // function call
-					var functionContent = tokens.slice(loopcount, tokens.indexOf('<',loopcount));
-					var tempNodeTree = new CanvasBox("", "");
-					var functionContentTree = this.SetupTree(tempNodeTree, functionContent);
-					var ContentResult = this.invoke([functionContentTree, functionContentTree.leftBranch, functionContentTree.rightBranch], true);
-					tokens.splice(loopcount, tokens.indexOf('<',loopcount)); // delete items except '<'
-					for (var newelem of this.userfunctions[ContentResult]){
-						tokens.splice(loopcount,0,newelem);
-						loopcount += 1;
-					}
+				case '>': // do nothing for now
 					break;
 				case '<':
 					// do nothing, because we already have passed this token 
 					break;
 				default: // instruction
-					currentNode.numstr = elem;
-					currentNode.nodename = FunctionInfos.get(elem);
+					if (indentcount === 0)currentNode = new CanvasBox(FunctionInfos.get(elem),elem);
 					instructioncalled = true;
+					currentNode.nodename = FunctionInfos.get(elem);
 					currentNode.position[0] = 25*loopcount;
 			}
 			if (instructioncalled === false && indentcount === 0) {
@@ -182,9 +365,6 @@ function Xen2K() {
 		var indentcount = 0;
 		var instructioncalled = false;
 		for (var elem of tokens){
-			if (indentcount === 0 && instructioncalled === false) {
-				currentNode = new TaskTree();
-			}
 			switch (elem){
 				case '/':
 					if (instructioncalled) {
@@ -222,25 +402,18 @@ function Xen2K() {
 					currentNode.name = elem;
 					instructioncalled = false;
 					break;
-				case '>': // function call
-					var functionContent = tokens.slice(loopcount, tokens.indexOf('<',loopcount));
-					var tempNodeTree = new TaskTree();
-					var functionContentTree = this.SetupTree(tempNodeTree, functionContent);
-					var ContentResult = this.invoke([functionContentTree, functionContentTree.leftBranch, functionContentTree.rightBranch], true);
-					tokens.splice(loopcount, tokens.indexOf('<',loopcount)); // delete items except '<'
-					for (var newelem of this.userfunctions[ContentResult]){
-						tokens.splice(loopcount,0,newelem);
-						loopcount += 1;
-					}
+				case '>': // do nothing for now
+					break;
 				case '<':
 					// do nothing, because we already have passed this token 
 					break;
 				default: // instruction
+					if (indentcount === 0)currentNode = new TaskTree();
 					currentNode.name = elem;
 					instructioncalled = true;
-					if (indentcount === 0){
-						NodeList.push(currentNode);
-					}
+			}
+			if (indentcount === 0 && instructioncalled === false){
+				NodeList.push(currentNode);
 			}
 			loopcount += 1;
 		}
@@ -268,16 +441,14 @@ function Xen2K() {
 	this.DEFCANVAS=(a,b) =>{
 		var consoleCanvas = document.createElement("canvas");
 		consoleCanvas.id = "consoleCanvas";
-		consoleCanvas.width = this.variables[this.arg(a, false)][0];
-		consoleCanvas.height = this.variables[this.arg(a, false)][1];
+		consoleCanvas.style = "display:table-cell";
+		consoleCanvas.width = this.arg(a, false);
+		consoleCanvas.height = this.arg(b, false);
 		document.getElementById("ide_console").appendChild(consoleCanvas);
-		if (this.arg(b,false) === 0){
-			this.currentCanvas = consoleCanvas.getContext("2d");
-		} else {
-			this.currentCanvas = consoleCanvas.getContext("webgl");
-		}
+		this.currentCanvas = consoleCanvas.getContext("2d");
 		this.console2Canvas = true;
-	} // "830": initialize Canvas, arg0: list of width and height; arg1: 2d(0) or webgl(1)
+		return 0;
+	} // "830": initialize Canvas; arg0, arg1: list of width and height
 	this.VARUSE=(a, b)=>{
 		a = this.arg(a, false);
 		b = this.arg(b, false);
@@ -379,74 +550,25 @@ function Xen2K() {
 	/**
 	*	class implementation with an array
 	*/
-	this.classMap = new Map([[0, []]]); // [name, member]
-	this.DEFCLASS = (a, b) => {
-		// a is name number and b is construction array
-		a = this.arg(a, false);
-		this.classMap.set(a, this.arg(b, false));
-		return a;
-	}
-	this.DEFCONSTRUCT= (a, b) => {
-		//a is parent class index, b is additional content Array
-		var tempArray = this.classMap.get(this.arg(a, false));
-		tempArray = tempArray.concat(this.arg(b, false));
-		return tempArray;
-	}
-	this.SETMEMBER = (a, b) => {
-		// you must call this.GETMEMBER first to execute this function
-		// a is target class member, b is source data
-		var tempArray = this.classMap.get(this.lastUse);
-		tempArray[this.arg(a, false)] = this.arg(b, false);
-		this.classMap.set(this.lastUse, tempArray);
-		return this.arg(b, false);
+	this.DEFVECTOR = (a, b) => {
+		return [this.arg(a,false), this.arg(b,false)];
 	}
 	this.CALLMEMBER = (a, b) => {
-		// you must call this.GETMEMBER first to execute this function
-		// a is member name, b is parameter list
+		// a is member indexes, b is parameter list
 		// return the result of member function
-		return (this.classMap.get(this.lastUse)[this.arg(a, false)])(this.arg(b, false)[0], this.arg(b, false)[1]);
-	}
-	this.GETMEMBER = (a, b) => {
-		// a is source class name, b is class array index
-		this.lastUse = this.arg(a, false);
-		return this.classMap.get(this.arg(a, false))[this.arg(b, false)];
+		return (this.variables[this.arg(a,false)[0]][this.arg(a,false)[1]])(this.arg(b, false)[0], this.arg(b, false)[1]);
 	}
 	this.DRAWRECT = (a, b) => {
 		// a is left top position, b is size
-		if (this.console2Canvas && this.currentCanvas !== null) {
-			var pos = this.arg(a, false);
-			var size = this.arg(b, false);
-			this.currentCanvas.beginPath();
-			this.currentCanvas.rect(pos[0], pos[1], size[0], size[1]);
-			this.currentCanvas.closePath();
-			this.currentCanvas.strokeStyle = "white";
-			this.currentCanvas.strokeRect();
-		}
+		DrawableObjectList.push(new DrawableObject(a, b, 0));
 	}
 	this.DRAWCIRCLE = (a, b) => {
 		// a is center position, b is radius
-		if (this.console2Canvas && this.currentCanvas !== null) {
-			var pos = this.arg(a, false);
-			var radius = this.arg(b, false);
-			this.currentCanvas.beginPath();
-			this.currentCanvas.arc(pos[0], pos[1], radius, 0, 2*Math.PI, true);
-			this.currentCanvas.closePath();
-			this.currentCanvas.strokeStyle = "white";
-			this.currentCanvas.stroke();
-		}
+		DrawableObjectList.push(new DrawableObject(a, b, 1));
 	}
 	this.DRAWLINE = (a, b) => {
 		// both a and b are position(start, end)
-		if (this.console2Canvas && this.currentCanvas !== null) {
-			var pos = this.arg(a, false);
-			var pos2 = this.arg(b, false);
-			this.currentCanvas.beginPath();
-			this.currentCanvas.moveTo(pos[0], pos[1]);
-			this.currentCanvas.LineTo(pos2[0], pos2[1]);
-			this.currentCanvas.closePath();
-			this.currentCanvas.strokeStyle = "white";
-			this.currentCanvas.stroke();
-		}
+		DrawableObjectList.push(new DrawableObject(a, b, 2));
 	}
 	this.SETTIMER = (a, b) => {
 		// a is content, b is timeout value
@@ -465,11 +587,8 @@ function Xen2K() {
 	this.command = [
 		['1001' , this.DEFCANVAS], // "830": initialize Canvas, arg0: list of width and height; arg1: 2d(0) or webgl(1)
 		['1008' , this.VARUSE], // "837": get arg0[arg1]
-		['1015' , this.DEFCLASS],
-		['1022', this.DEFCONSTRUCT], 
-		['1029', this.SETMEMBER],
+		['1015' , this.DEFVECTOR],
 		['1036', this.CALLMEMBER], 
-		['1043', this.GETMEMBER], 
 		['1050', this.DRAWRECT], 
 		['1057', this.DRAWCIRCLE], 
 		['1064', this.DRAWLINE], 
@@ -496,7 +615,7 @@ function Xen2K() {
 	this.functions = new Map(this.command);
 	this.invoke= function(instruction, DoNotDisplay = false){
         var ISA = instruction;
-        if (DoNotDisplay && ISA[0].name === '2562')
+        if (DoNotDisplay && (ISA[0].name === '2562'|| ISA[0].naver === '2569'))
             return this.set(this.arg(ISA[1], DoNotDisplay));
         return (this.functions.get(ISA[0].name))(ISA[1],ISA[2]);
     };
@@ -539,138 +658,19 @@ function Xen2K() {
 	};
 }
 
-function DropdownMenu (menulist){
-	this.position = [0,0];
-	this.size = [120, 160];
-	this.activated = false;
-	this.MenuList = menulist; // contain [[a, name], [b, name2], ...]
-	this.sightpoint = 0; // determine the visible range of MenuList (sightpoint~sightpoint + 10)
-	this.DrawMenu = (ctx) => {
-		ctx.beginPath();
-		ctx.rect(this.position[0], this.position[1], this.size[0], this.size[1]);
-		ctx.fillStyle = "rgba(120, 120, 120, 1)";
-		ctx.fill();
-		
-		ctx.closePath();
-		for (var index in this.MenuList){
-			if (index < this.sightpoint || index >= this.sightpoint+10) continue;
-			ctx.beginPath();
-			ctx.font = "10px Arial, sans-serif";
-			ctx.strokeStyle = "rgba(20, 20, 20, 1)";
-			ctx.textAlign = "left";
-			ctx.textBaseline = "top";
-			ctx.strokeText(this.MenuList[index][1], this.position[0], 4+this.position[1]+(index - this.sightpoint)*16);
-			ctx.closePath();
-		}
-		// draw the scroll position
-		if (this.MenuList.length > 10){
-			ctx.beginPath();
-			ctx.rect(this.position[0] + this.size[0] - 5, this.position[1] + this.sightpoint * 16 * 10 / this.MenuList.length, 5, 160* 10 / this.MenuList.length);
-			ctx.fillStyle = "rgba(80,80,80,1)";
-			ctx.fill();
-			ctx.closePath();
-		}
-	}
-}
 
-function CanvasComment (nodename){
-	this.position = [0,0];
-	this.size = [50, 50];
-	this.nodename = nodename;
-	this.dragging = false;
-	this.activated = false;
-	this.SetPosition = function(x, y) {
-		this.position = [x-50, y-25];
-	}
-	this.DrawNode = function(){
-		var ctx = document.getElementById("MainCanvas").getContext("2d");
-		ctx.beginPath();
-		ctx.rect(this.position[0], this.position[1], this.size[0], this.size[1]);
-		ctx.fillStyle = "rgba(200, 200, 240, 0.5)";
-		ctx.fill();
-		ctx.closePath();
-		if (typingComment === this) {
-			ctx.beginPath();
-			ctx.fillStyle = "rgba(240, 240, 240, 1)";
-			ctx.rect(this.position[0], this.position[1], this.size[0], 16);
-			ctx.fill();
-			ctx.closePath();
-		}
-		ctx.beginPath();
-		ctx.strokeStyle = "rgba(100, 100, 20, 1)";
-		ctx.font = "16px Arial, sans-serif";
-		ctx.textBaseline = "top";
-		ctx.strokeText(this.nodename,this.position[0], this.position[1]);
-		ctx.closePath();
-	}
-}
-
-function CanvasBox (nodename, numstr) {
-	this.position = [0,0];
-	this.size = [100, 50];
-	this.nodename = nodename;
-	this.numstr = numstr;
-	this.dragging = false;
-	this.leftBranch = null;
-	this.rightBranch = null;
-	this.parentNode = null;
-	this.SetPosition = function(x, y) {
-		this.position = [x-50, y-25];
-	}
-	this.DrawNode = function(){
-		var ctx = document.getElementById("MainCanvas").getContext("2d");
-		ctx.beginPath();
-		ctx.rect(this.position[0], this.position[1], this.size[0], this.size[1]);
-		ctx.fillStyle = "rgba(200, 200, 24, 1)";
-		ctx.fill();
-		ctx.font = "10px Arial, sans-serif";
-		ctx.textAlign = "center";
-		ctx.textBaseline = "middle";
-		ctx.strokeText(this.nodename,this.position[0]+50, this.position[1]+25);
-		ctx.closePath();
-		if(this.numstr !== '*' && this.numstr !== '_') {
-			ctx.beginPath();
-			ctx.rect(this.position[0], this.position[1]+ this.size[1] - 10, this.size[0]/2, 10);
-			ctx.fillStyle = "rgba(200, 20, 24, 1)";
-			ctx.fill();
-			ctx.closePath();
-			ctx.beginPath();
-			ctx.rect(this.position[0]+ this.size[0]/2, this.position[1]+ this.size[1] - 10, this.size[0]/2, 10);
-			ctx.fillStyle = "rgba(200, 20, 240, 1)";
-			ctx.fill();
-			ctx.closePath();
-		}
-		if (this.leftBranch !== null) {
-			ctx.beginPath();
-			ctx.moveTo(this.position[0] + this.size[0] / 4, this.position[1]+ this.size[1]);
-			ctx.lineTo(this.leftBranch.position[0] + this.leftBranch.size[0] / 2, this.leftBranch.position[1]);
-			ctx.closePath();
-			ctx.strokeStyle = "black";
-			ctx.lineWidth = 1.0;
-			ctx.stroke();
-		}
-		if (this.rightBranch !== null) {
-			ctx.beginPath();
-			ctx.moveTo(this.position[0] + 3 * this.size[0] / 4, this.position[1]+ this.size[1]);
-			ctx.lineTo(this.rightBranch.position[0] + this.rightBranch.size[0] / 2, this.rightBranch.position[1]);
-			ctx.closePath();
-			ctx.strokeStyle = "black";
-			ctx.lineWidth = 1.0;
-			ctx.stroke();
-		}
-	}
-}
-
+var rawClassList = [];
 // callback functions
 function onChangeHeaderFile(event) {
-	var fileText;
-	var file = event.target.files[0];
-	var reader = new FileReader();
-	reader.onload = function(e) {
-	  fileText = e.target.result;
-	  Xen2KHandle.readuserfunctions(fileText);
-	};
-	reader.readAsText(file);
+	var file = event.target.files;
+	for (var f of file){
+		var reader = new FileReader();
+		reader.onload = function(e) {
+		  rawClassList.push(e.target.result);
+		  Xen2KHandle.readuserfunctions(rawClassList[rawClassList.length -1]);
+		};
+		reader.readAsText(f);
+	}
   }
   // callback functions
   function onChangeProgramFile(event) {
@@ -934,39 +934,36 @@ function canvas_keydown_handler(e){
 		}
 	}
 }
-
+var rootNodeList =  [];
 function savehandler(e) {
 	if (bareNodeList.length === 0) return;
-	var rootNodeList = new Array();
+	resultscript = "";
+	rootNodeList = [];
 	for (var nodeElem of bareNodeList){
-		if (nodeElem.parentNode === null) rootNodeList.push(nodeElem);
+		if (nodeElem.parentNode === null) {
+			rootNodeList.push(nodeElem);
+		}
 	}
-	// sort rootNodeList
-	var markedNodeIndex = 0;
-	var sortComplete = false;
-	while (!sortComplete){
-		sortComplete = true;
-		var minimum = 0;
-		for (var nodeElem of rootNodeList){
-			if (nodeElem.position[0] < rootNodeList[minimum].position[0]) {
-				minimum = rootNodeList.indexOf(nodeElem);
-				sortedComplete = false;
+	//Sorting
+	if (rootNodeList.length>= 2){
+		var sorted = false;
+		while (!sorted) {
+			sorted = true;
+			for (var index1 = 0; index1 < rootNodeList.length -1 ; index1++) {
+				if (rootNodeList[index1].position[0] < rootNodeList[index1+1].position[0]) {
+					sorted = false;
+					var temp = rootNodeList[index1];
+					rootNodeList[index1] = rootNodeList[index1+1];
+					rootNodeList[index1+1] = temp;
+				}
+
 			}
 		}
-		tempNode = rootNodeList[minimum];
-		rootNodeList.splice(minimum, 1, rootNodeList.splice(markedNodeIndex, 1, tempNode)[0]);
-		markedNodeIndex += 1;
 	}
-
-	resultscript = "";
-	for (var nodeElem of rootNodeList){
-		resultscript += itoa(parseInt(nodeElem.numstr));
-		resultscript += "=";
-		recursiveScriptBuilder(nodeElem.leftBranch);
-		resultscript += "+";
-		recursiveScriptBuilder(nodeElem.rightBranch);
-		resultscript+= ".";
+	for (var index1 of rootNodeList){
+		recursiveScriptBuilder(index1);
 	}
+	
 	//load result to console
 	document.getElementById("ide_export").innerHTML = resultscript;
 	var file = new Blob([resultscript], {type:"text/plain"});
@@ -980,12 +977,12 @@ function savehandler(e) {
 		window.URL.revokeObjectURL(url);  
 	}, 0);
 }
-
-// normal function
 var resultscript = "";
-function recursiveScriptBuilder(targetnode){
-	if (targetnode.nodename === '*' || targetnode.nodename === '_') {
+// normal function
+function recursiveScriptBuilder(targetnode){ // targetnode == a node of rootNodeList(CanvasTree)
+	if (targetnode.numstr === '*' || targetnode.numstr === '_') {
 		resultscript += targetnode.numstr;
+		return;
 	} else {
 		//function found
 		resultscript+=itoa(parseInt(targetnode.numstr));
@@ -994,22 +991,10 @@ function recursiveScriptBuilder(targetnode){
 		resultscript += "+";
 		recursiveScriptBuilder(targetnode.rightBranch);
 		resultscript+= ".";
+		return;
 	}
 }
 
-function itoa(number){
-    //"Given a number, return a 11-based representation of it."
-    var result = "";
-    while (number !== 0){
-        var r = number % 11;
-        if (r < 10)
-            result += r.toString() ;
-        else
-            result += " ";
-        number = Math.trunc(number / 11);
-	}
-    return result.split("").reverse().join("");
-}
 function AddNodeToCanvas(pos, NodeName) {
 	for (var node in NodeArray){
 		if (NodeArray[node].nodename === NodeName){
@@ -1040,18 +1025,18 @@ function renderCanvas(){
 		ctx.lineWidth = 1.0;
 		ctx.stroke();
 	}
+	for (var elem of DrawableObjectList) {
+		elem.Draw();
+	}
 	if (DropMenuHandle.activated)DropMenuHandle.DrawMenu(document.getElementById("MainCanvas").getContext("2d"));
 	requestAnimationFrame(renderCanvas);
 }
 
 var Xen2KHandle = new Xen2K();
 var FunctionInfoDefault = [
-		['1001', "DEFCANVAS"], 
-		['1015' , "DEFCLASS"],
-		['1022', "DEFCONSTRUCT"], 
-		['1029', "SETMEMBER"],
-		['1036', "CALLMEMBER"], 
-		['1043', "GETMEMBER"], 
+		['1001', "DEFCANVAS"],
+		['1015', "DEFVECTOR"],
+		['1036', "CALLMEMBER"],  
 		['1050', "DRAWRECT"], 
 		['1057', "DRAWCIRCLE"], 
 		['1064', "DRAWLINE"], 
@@ -1062,11 +1047,8 @@ var FunctionInfoDefault = [
 var DropMenuHandle = new DropdownMenu(FunctionInfoDefault);
 
 var FunctionInfoElem = new Array(['1001', "DEFCANVAS"], 
-		['1015' , "DEFCLASS"],
-		['1022', "DEFCONSTRUCT"], 
-		['1029', "SETMEMBER"],
+		['1015', "DEFVECTOR"],
 		['1036', "CALLMEMBER"], 
-		['1043', "GETMEMBER"], 
 		['1050', "DRAWRECT"], 
 		['1057', "DRAWCIRCLE"], 
 		['1064', "DRAWLINE"], 
@@ -1113,7 +1095,7 @@ document.getElementById("mw-content-text").appendChild(Background);
 var consolepage = document.createElement('div');
 consolepage.id = "ide_console";
 consolepage.innerHTML = "console\n";
-document.getElementById("mw-content-text").appendChild(consolepage);
+document.getElementById("ide_main").appendChild(consolepage);
 
 var exportpage = document.createElement('div');
 exportpage.id = "ide_export";
