@@ -256,7 +256,6 @@ function CanvasBox (nodename, numstr) {
 
 function Xen2K() {
 	// member variables/objects
-	this.userfunctions = [];
 	this.currentNodeList = [];
 	this.currentCanvas = null;
 	this.console2Canvas = false;
@@ -989,9 +988,7 @@ function savehandler(e) {
 	for (var index1 of rootNodeList){
 		recursiveScriptBuilder(index1);
 	}
-	
-	//load result to console
-	document.getElementById("ide_export").innerHTML = resultscript;
+	// download the result
 	var file = new Blob([resultscript], {type:"text/plain"});
 	var a = document.createElement("a"),url = URL.createObjectURL(file);
 	a.href = url;
@@ -1117,20 +1114,33 @@ Background.style.display = "table-row-group";
 Background.innerHTML = "<div id = \"mainplate\"> \
        <canvas id=\"MainCanvas\" width=\"800px\" height=\"600px\"></canvas> \
     </div> \
-	<div id = \"nodelist\" width=\"800px\" height=\"600px\"> \
+	<span id = \"nodelist\" width=\"800px\" height=\"600px\"> \
 	Xen2K IDE<br>\
-    </div> ";
+    </span>";
 document.getElementById("mw-content-text").appendChild(Background);
+
+var exportToFileButton = document.createElement("button");
+exportToFileButton.id = "saveButton";
+exportToFileButton.addEventListener("click", savehandler);
+exportToFileButton.innerText = "Save";
+document.getElementById("ide_main").appendChild(exportToFileButton); 
+
+var formElement = document.createElement('form');
+formElement.name = "uploadedFile";
+formElement.innerHTML = "\
+	  <span>꾸러미 가져오기</span>\
+      <input id=\"uploadInput\" type=\"file\" name=\"myFiles\" onchange=\"onChangeHeaderFile(event)\" multiple>";
+document.getElementById("ide_main").appendChild(formElement);
 
 var consolepage = document.createElement('div');
 consolepage.id = "ide_console";
 consolepage.innerHTML = "console\n";
 document.getElementById("ide_main").appendChild(consolepage);
 
-var exportpage = document.createElement('div');
-exportpage.id = "ide_export";
-exportpage.innerHTML = "";
-document.getElementById("mainplate").appendChild(exportpage);
+var classpage = document.createElement('div');
+classpage.id = "ide_class";
+classpage.innerHTML = "";
+document.getElementById("mainplate").appendChild(classpage);
 
 var NodeArray = [];
 NodeArray.push(new CanvasBox('VARUSE','1008'));
@@ -1156,24 +1166,6 @@ for (var node of NodeArray) {
 	document.getElementById("nodelist").innerHTML += "<div class=\"nodes\" style=\"display:inline;background-color:#ecb324;margin:2px;\" draggable=\"true\">"+node.nodename+"</div>";
 
 }
-
-var exportToFileButton = document.createElement("button");
-exportToFileButton.id = "saveButton";
-exportToFileButton.addEventListener("click", savehandler);
-exportToFileButton.innerText = "Save";
-document.getElementById("ide_main").appendChild(exportToFileButton); 
-
-var formElement = document.createElement('form');
-formElement.name = "uploadedFile";
-formElement.innerHTML = "<div> \
-	  <span>함수꾸러미</span>\
-      <input id=\"uploadInput\" type=\"file\" name=\"myFiles\" onchange=\"onChangeHeaderFile(event)\" multiple> \
-    </div> \
-	<div> \
-	  <span>코드 파일</span>\
-      <input id=\"uploadProgram\" type=\"file\" name=\"myProgram\" onchange=\"onChangeProgramFile(event)\" multiple> \
-    </div>"
-document.getElementById("ide_main").appendChild(formElement);
 
 window.addEventListener('DOMContentLoaded', () => {
 	// Get the element by id

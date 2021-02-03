@@ -2,6 +2,7 @@
 	background-color: yellow;
 	display: block;
 	text-align: center;
+	display:table-row;
 }
 #maincanvas {
 	display:table-cell;
@@ -22,10 +23,13 @@
 	overflow-y:scroll;
 	vertical-align: top;
 }
-#ide_export {
+#ide_class {
 	width: 160px;
 	vertical-align: top;
 	display:table-cell;
 	background-color: blueviolet;
 	overflow-y:scroll;
+}
+#classManager {
+	display:table-cell;
 }
