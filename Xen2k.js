@@ -17,15 +17,35 @@ function digit(c){
     return 10;
 }
 
+function atoi(number) {
+    //"Given a 11-based number, return the integer for it"
+    var result = 0;
+    for (var c of number){
+        if (isDigit(c)){
+            result *= 11;
+            result += digit(c);
+		}
+        else{
+            break;
+		}
+	}
+    return result;
+}
+
 function itoa(number) {
     //"Given a number, return a 11-based representation of it."
     var result = [];
     while (number !== 0){
         r = number % 11;
-        if (r < 10)
+        if (r < 10) {
             result.push( r.toString() );
-        else
+		}
+		else if (r == NaN) { // we have to check this no matter of what type of r is.
+			return "";
+		}
+        else {
             result.push( ' ' );
+		}
         number = Math.trunc(number / 11);
 	}
     result.reverse();
@@ -43,10 +63,10 @@ BreakLoop.prototype.toString = function () {
 
 function TaskTree () {
 	this.parentNode = null;
-	this.name = null; // number name, is number
+	this.nodename = null; // number name, is number
 	this.leftBranch = null;
 	this.rightBranch = null;
-	this.num = NaN; // num is index of rootNodeList
+	this.numstr = NaN; // num is index of rootNodeList
 	this.push = (data, index) => {
 		if (this.name === null) {
 			this.name = data;
@@ -102,40 +122,42 @@ function DropdownMenu (menulist){
 
 var DrawableObjectList = [];
 function DrawableObject (a, b, type){
-	this.a = a = parseInt(a);
-	this.b = b = parseInt(b);
+	this.a = a;
+	this.b = b;
 	this.type = type;
 	this.Draw = () => {
 		if (this.type === 0) {
-			if (this.console2Canvas && this.currentCanvas !== null) {
+			if (Xen2KHandle.console2Canvas && Xen2KHandle.currentCanvas !== null) {
 				var pos = a;
 				var size = b;
-				this.currentCanvas.beginPath();
-				this.currentCanvas.rect(pos[0], pos[1], size[0], size[1]);
-				this.currentCanvas.fillStyle = "rgba(255, 255, 255,1)";
-				this.currentCanvas.fill();
-				this.currentCanvas.closePath();
+				Xen2KHandle.currentCanvas.beginPath();
+				Xen2KHandle.currentCanvas.rect(parseInt(pos[0]), parseInt(pos[1]), parseInt(size[0]), parseInt(size[1]));
+				Xen2KHandle.currentCanvas.closePath();
+				Xen2KHandle.currentCanvas.fillStyle = "rgba(255, 255, 255,1)";
+				Xen2KHandle.currentCanvas.fill();
 			}
 		} else if (this.type === 1) {
-			if (this.console2Canvas && this.currentCanvas !== null) {
+			if (Xen2KHandle.console2Canvas && Xen2KHandle.currentCanvas !== null) {
 				var pos = a;
 				var radius = b;
-				this.currentCanvas.beginPath();
-				this.currentCanvas.arc(pos[0], pos[1], radius, 0, 2*Math.PI, true);
-				this.currentCanvas.strokeStyle = "rgba(255, 255, 255,1)";
-				this.currentCanvas.stroke();
-				this.currentCanvas.closePath();
+				Xen2KHandle.currentCanvas.beginPath();
+				Xen2KHandle.currentCanvas.arc(parseInt(pos[0]), parseInt(pos[1]), radius, 0, 2*Math.PI, true);
+				Xen2KHandle.currentCanvas.closePath();
+				Xen2KHandle.currentCanvas.fillStyle = "rgba(255, 255, 255,1)";
+				Xen2KHandle.currentCanvas.fill();
+				Xen2KHandle.currentCanvas.strokeStyle = "rgba(255, 255, 255,1)";
+				Xen2KHandle.currentCanvas.stroke();
 			}
 		} else if (this.type === 2) {
-			if (this.console2Canvas && this.currentCanvas !== null) {
+			if (Xen2KHandle.console2Canvas && Xen2KHandle.currentCanvas !== null) {
 				var pos = a;
 				var pos2 = b;
-				this.currentCanvas.beginPath();
-				this.currentCanvas.moveTo(pos[0], pos[1]);
-				this.currentCanvas.LineTo(pos2[0], pos2[1]);
-				this.currentCanvas.fillStyle = "rgba(255, 255, 255,1)";
-				this.currentCanvas.fill();
-				this.currentCanvas.closePath();
+				Xen2KHandle.currentCanvas.beginPath();
+				Xen2KHandle.currentCanvas.moveTo(parseInt(pos[0]), parseInt(pos[1]));
+				Xen2KHandle.currentCanvas.LineTo(parseInt(pos2[0]), parseInt(pos2[1]));
+				Xen2KHandle.currentCanvas.closePath();
+				Xen2KHandle.currentCanvas.fillStyle = "rgba(255, 255, 255,1)";
+				Xen2KHandle.currentCanvas.fill();
 			}
 		}
 	}
@@ -339,6 +361,7 @@ function Xen2K() {
 					if (indentcount === 0)currentNode = new CanvasBox(FunctionInfos.get(elem),elem);
 					instructioncalled = true;
 					currentNode.nodename = FunctionInfos.get(elem);
+					currentNode.numstr = elem;
 					currentNode.position[0] = 25*loopcount;
 			}
 			if (instructioncalled === false && indentcount === 0) {
@@ -399,7 +422,8 @@ function Xen2K() {
 					break;
 				case '*': //random
 				case '_': //previous
-					currentNode.name = elem;
+					currentNode.nodename = elem;
+					currentNode.numstr = elem;
 					instructioncalled = false;
 					break;
 				case '>': // do nothing for now
@@ -409,7 +433,8 @@ function Xen2K() {
 					break;
 				default: // instruction
 					if (indentcount === 0)currentNode = new TaskTree();
-					currentNode.name = elem;
+					currentNode.nodename = elem;
+					currentNode.numstr = itoa(elem);
 					instructioncalled = true;
 			}
 			if (indentcount === 0 && instructioncalled === false){
@@ -429,11 +454,12 @@ function Xen2K() {
         return this.result;
     };
 	this.arg = (argument, DoNotDisplay = false)=>{
-        if ( argument.name === '*') {
+        if ( argument.nodename === '*') {
 			return this.set(Math.floor(Math.random()* 10000));
 		}
-        else if (argument.name === '_')
+        else if (argument.nodename === '_'){
             return this.result;
+		}
         else  // we need recursion to traverse the instruction tree
 			return this.set( this.invoke([argument, argument.leftBranch, argument.rightBranch], DoNotDisplay) );
     };
@@ -560,15 +586,15 @@ function Xen2K() {
 	}
 	this.DRAWRECT = (a, b) => {
 		// a is left top position, b is size
-		DrawableObjectList.push(new DrawableObject(a, b, 0));
+		DrawableObjectList.push(new DrawableObject(this.arg(a,false), this.arg(b,false), 0));
 	}
 	this.DRAWCIRCLE = (a, b) => {
 		// a is center position, b is radius
-		DrawableObjectList.push(new DrawableObject(a, b, 1));
+		DrawableObjectList.push(new DrawableObject(this.arg(a,false), this.arg(b,false), 1));
 	}
 	this.DRAWLINE = (a, b) => {
 		// both a and b are position(start, end)
-		DrawableObjectList.push(new DrawableObject(a, b, 2));
+		DrawableObjectList.push(new DrawableObject(this.arg(a,false), this.arg(b,false), 2));
 	}
 	this.SETTIMER = (a, b) => {
 		// a is content, b is timeout value
@@ -617,7 +643,7 @@ function Xen2K() {
         var ISA = instruction;
         if (DoNotDisplay && (ISA[0].name === '2562'|| ISA[0].naver === '2569'))
             return this.set(this.arg(ISA[1], DoNotDisplay));
-        return (this.functions.get(ISA[0].name))(ISA[1],ISA[2]);
+        return (this.functions.get(ISA[0].nodename))(ISA[1],ISA[2]);
     };
 	this.tokenize= function(data){
         var result = [];
@@ -941,7 +967,7 @@ function savehandler(e) {
 	rootNodeList = [];
 	for (var nodeElem of bareNodeList){
 		if (nodeElem.parentNode === null) {
-			rootNodeList.push(nodeElem);
+			rootNodeList.push(nodeElem); //type: CanvasBox
 		}
 	}
 	//Sorting
@@ -950,7 +976,7 @@ function savehandler(e) {
 		while (!sorted) {
 			sorted = true;
 			for (var index1 = 0; index1 < rootNodeList.length -1 ; index1++) {
-				if (rootNodeList[index1].position[0] < rootNodeList[index1+1].position[0]) {
+				if (rootNodeList[index1].position[0] > rootNodeList[index1+1].position[0]) {
 					sorted = false;
 					var temp = rootNodeList[index1];
 					rootNodeList[index1] = rootNodeList[index1+1];
@@ -979,8 +1005,8 @@ function savehandler(e) {
 }
 var resultscript = "";
 // normal function
-function recursiveScriptBuilder(targetnode){ // targetnode == a node of rootNodeList(CanvasTree)
-	if (targetnode.numstr === '*' || targetnode.numstr === '_') {
+function recursiveScriptBuilder(targetnode){ // targetnode == a node of rootNodeList(CanvasBox)
+	if (targetnode.nodename === '*' || targetnode.nodename === '_') {
 		resultscript += targetnode.numstr;
 		return;
 	} else {
@@ -1025,8 +1051,11 @@ function renderCanvas(){
 		ctx.lineWidth = 1.0;
 		ctx.stroke();
 	}
-	for (var elem of DrawableObjectList) {
-		elem.Draw();
+	if (Xen2KHandle.console2Canvas){
+		document.getElementById("consoleCanvas").width = document.getElementById("consoleCanvas").width; // reset the canvas
+		for (var elem of DrawableObjectList) {
+			elem.Draw();
+		}
 	}
 	if (DropMenuHandle.activated)DropMenuHandle.DrawMenu(document.getElementById("MainCanvas").getContext("2d"));
 	requestAnimationFrame(renderCanvas);
@@ -1046,7 +1075,8 @@ var FunctionInfoDefault = [
 		];
 var DropMenuHandle = new DropdownMenu(FunctionInfoDefault);
 
-var FunctionInfoElem = new Array(['1001', "DEFCANVAS"], 
+var FunctionInfoElem = new Array(
+        ['1001', "DEFCANVAS"], 
 		['1015', "DEFVECTOR"],
 		['1036', "CALLMEMBER"], 
 		['1050', "DRAWRECT"], 
