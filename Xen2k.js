@@ -261,26 +261,24 @@ function Xen2K() {
 	this.console2Canvas = false;
 	this.lastUse = 0;
 	this.variables = [];
+	this.construction = [];
+	this.classmember = [];
+	this.classFunction = [];
 	// member functions
-	this.readuserfunctions = function (data){
-        if (data !== ""){
-            var functiondata = data.split('! ')
-			var tempArray = [];
-            if (functiondata.length > 0){
-				tempArray = functiondata[0].split(','); 
-				// removing useless line change
-				tempArray.pop();
-                for (let func of functiondata) {
-                    var tokens = this.tokenize(func);
-                    tempArray = tempArray.concat(this.SetupTree(new Array(), tokens));
-				}
-			}
-			this.variables.push(tempArray);
-		}
-	};
 	this.read = function(data){
-		this.LoadToCanvas(data)
-        return this.parse(data);
+		var tempdata = data.split("\n! ");
+		var tempdata2 = tempdata[0].split("\n#");
+		data = tempdata2[1];
+		this.LoadToCanvas(data);
+		this.construction = data; // add to constructor array
+		this.classmember.push(tempdata2[0].split(","));
+		var tempArray = [];
+		for (var i = 1; i< tempdata.length; i++) {
+			tempArray.push(this.SetupTree(new Array(0), this.tokenize(tempdata[i])));
+		}
+		this.classFunction.push(tempArray);
+		AddClassToClassExplorer(this.classFunction.length - 1);
+        return;
 	};
 	// parse: execute code
 	this.parse = function(data){
@@ -581,7 +579,10 @@ function Xen2K() {
 	this.CALLMEMBER = (a, b) => {
 		// a is member indexes, b is parameter list
 		// return the result of member function
-		return (this.variables[this.arg(a,false)[0]][this.arg(a,false)[1]])(this.arg(b, false)[0], this.arg(b, false)[1]);
+		return (this.classFunction[this.arg(a,false)[0]][this.arg(a,false)[1]])(this.arg(b, false)[0], this.arg(b, false)[1]);
+	}
+	this.GETMEMBER = (a,b) => {
+		return this.classmember[this.arg(a,false)][this.arg(b, false)];
 	}
 	this.DRAWRECT = (a, b) => {
 		// a is left top position, b is size
@@ -613,7 +614,8 @@ function Xen2K() {
 		['1001' , this.DEFCANVAS], // "830": initialize Canvas, arg0: list of width and height; arg1: 2d(0) or webgl(1)
 		['1008' , this.VARUSE], // "837": get arg0[arg1]
 		['1015' , this.DEFVECTOR],
-		['1036', this.CALLMEMBER], 
+		['1036', this.CALLMEMBER],
+		['1043', this.GETMEMBER],
 		['1050', this.DRAWRECT], 
 		['1057', this.DRAWCIRCLE], 
 		['1064', this.DRAWLINE], 
@@ -683,31 +685,19 @@ function Xen2K() {
 	};
 }
 
-
-var rawClassList = [];
 // callback functions
-function onChangeHeaderFile(event) {
+function onChangeFile(event) {
+	var fileText;
 	var file = event.target.files;
-	for (var f of file){
+	for (var f of file) {
 		var reader = new FileReader();
 		reader.onload = function(e) {
-		  rawClassList.push(e.target.result);
-		  Xen2KHandle.readuserfunctions(rawClassList[rawClassList.length -1]);
+		  fileText = e.target.result;
+		  Xen2KHandle.read(fileText);
 		};
 		reader.readAsText(f);
 	}
-  }
-  // callback functions
-  function onChangeProgramFile(event) {
-	var fileText;
-	var file = event.target.files[0];
-	var reader = new FileReader();
-	reader.onload = function(e) {
-	  fileText = e.target.result;
-	  Xen2KHandle.read(fileText);
-	};
-	reader.readAsText(file);
-  }
+}
 
 function dragstart_handler(ev) {
 	// Add the target element's id to the data transfer object
@@ -1029,6 +1019,29 @@ function AddNodeToCanvas(pos, NodeName) {
 		}
 	}
 }
+function AddClassToClassExplorer (classindex) {
+	var background = document.createElement("div");
+	background.id="classbackground"+classindex.toString();
+	background.innerHTML = "class "+classindex.toString() + "<br>멤버 변수";
+	document.getElementById("ide_class").appendChild(background);
+	var selectVariable = document.createElement("select");
+	for (var classmemberVar of Xen2KHandle.classmember[classindex]){
+		var tempoption = document.createElement("option");
+		tempoption.value = classmemberVar;
+		tempoption.innerText = classmemberVar;
+		selectVariable.appendChild(tempoption);
+	}
+	document.getElementById("classbackground"+classindex.toString()).appendChild(selectVariable);
+	background.innerHTML +="<br>멤버 함수";
+	var selectFunc = document.createElement("select");
+	for (var classmemberFunc of Xen2KHandle.classFunction[classindex]){
+		var tempoption = document.createElement("option");
+		tempoption.value = classmemberFunc;
+		tempoption.innerText = classmemberFunc;
+		selectFunc.appendChild(tempoption);
+	}
+	document.getElementById("classbackground"+classindex.toString()).appendChild(selectFunc);
+}
 
 function renderCanvas(){
 	document.getElementById("MainCanvas").width = document.getElementById("MainCanvas").width; // reset the canvas
@@ -1062,7 +1075,8 @@ var Xen2KHandle = new Xen2K();
 var FunctionInfoDefault = [
 		['1001', "DEFCANVAS"],
 		['1015', "DEFVECTOR"],
-		['1036', "CALLMEMBER"],  
+		['1036', "CALLMEMBER"],
+		['1043', "GETMEMBER"],
 		['1050', "DRAWRECT"], 
 		['1057', "DRAWCIRCLE"], 
 		['1064', "DRAWLINE"], 
@@ -1075,7 +1089,8 @@ var DropMenuHandle = new DropdownMenu(FunctionInfoDefault);
 var FunctionInfoElem = new Array(
         ['1001', "DEFCANVAS"], 
 		['1015', "DEFVECTOR"],
-		['1036', "CALLMEMBER"], 
+		['1036', "CALLMEMBER"],
+		['1043', "GETMEMBER"],		
 		['1050', "DRAWRECT"], 
 		['1057', "DRAWCIRCLE"], 
 		['1064', "DRAWLINE"], 
@@ -1129,7 +1144,7 @@ var formElement = document.createElement('form');
 formElement.name = "uploadedFile";
 formElement.innerHTML = "\
 	  <span>꾸러미 가져오기</span>\
-      <input id=\"uploadInput\" type=\"file\" name=\"myFiles\" onchange=\"onChangeHeaderFile(event)\" multiple>";
+      <input id=\"uploadInput\" type=\"file\" name=\"myFiles\" onchange=\"onChangeFile(event)\" multiple>";
 document.getElementById("ide_main").appendChild(formElement);
 
 var consolepage = document.createElement('div');
