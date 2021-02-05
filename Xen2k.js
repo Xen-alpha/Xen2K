@@ -274,10 +274,11 @@ function Xen2K() {
 		this.classmember.push(tempdata2[0].split(","));
 		var tempArray = [];
 		for (var i = 1; i< tempdata.length; i++) {
-			tempArray.push(this.SetupTree(new Array(0), this.tokenize(tempdata[i])));
+			var memberFuncTree = [(i-1).toString(),this.SetupTree(new Array(0), this.tokenize(tempdata[i]))];
+			tempArray.push(memberFuncTree);
 		}
 		this.classFunction.push(tempArray);
-		AddClassToClassExplorer(this.classFunction.length - 1);
+		AddClassToClassExplorer(this.classmember.length > this.classFunction.length? this.classmember.length:this.classFunction.length);
         return;
 	};
 	// parse: execute code
@@ -715,6 +716,12 @@ function drop_handler(ev) {
 	AddNodeToCanvas([ev.offsetX, ev.offsetY], data);
 }
 
+var dataArray =[];
+function changeTargetMemberVar(ev) {
+	const data = ev.dataTransfer.getData("text/plain");
+	dataArray = data.split(",");
+	ev.target.value = dataArray[2];
+}
 
 var BranchPoint = 0;
 var DrawingLine = [[0,0], [0,0]];
@@ -1022,25 +1029,50 @@ function AddNodeToCanvas(pos, NodeName) {
 function AddClassToClassExplorer (classindex) {
 	var background = document.createElement("div");
 	background.id="classbackground"+classindex.toString();
-	background.innerHTML = "class "+classindex.toString() + "<br>멤버 변수";
+	background.style="width:296px;height:100px;display:table;border:2px solid";
+	background.value= classindex;
+	background.innerHTML = "<div width=\"100%\" style=\"display:table-header-group;border:2px solid;\"><div style=\"display:table-cell\">class "+classindex.toString() + "</div><div style=\"display:table-cell\">멤버 변수</div><div style=\"display:table-cell\">멤버 함수</div></div>";
 	document.getElementById("ide_class").appendChild(background);
-	var selectVariable = document.createElement("select");
-	for (var classmemberVar of Xen2KHandle.classmember[classindex]){
-		var tempoption = document.createElement("option");
-		tempoption.value = classmemberVar;
-		tempoption.innerText = classmemberVar;
-		selectVariable.appendChild(tempoption);
+	
+	var memberRowgroup = document.createElement("div");
+	memberRowgroup.style.display = "table-row-group";
+	for (var index = 0; index < (Xen2KHandle.classmember[classindex-1].length > Xen2KHandle.classFunction[classindex-1].length ? Xen2KHandle.classmember[classindex-1].length:Xen2KHandle.classFunction[classindex-1].length ); index++){
+		var memberRow = document.createElement("div");
+		memberRow.style.display = "table-row";
+		var nulloption = document.createElement("div");
+		nulloption.style.display = "table-cell";
+		if (index === 0) nulloption.innerHTML = "<button>생성자</button>"
+		memberRow.appendChild(nulloption);
+		// member variable
+		if (Xen2KHandle.classmember[classindex-1][index] !== undefined) {
+			var tempoption = document.createElement("div");
+			tempoption.className = "membervarTable"
+			tempoption.style.display = "table-cell";
+			tempoption.draggable = true;
+			tempoption.addEventListener("dragstart", classvar_dragstart_handler);
+			tempoption.value = index;
+			tempoption.innerText = Xen2KHandle.classmember[classindex-1][index];
+			memberRow.appendChild(tempoption);
+		}
+		if (Xen2KHandle.classFunction[classindex-1][index] !== undefined){
+			var tempoption2 = document.createElement("div");
+			tempoption2.style.display = "table-cell";
+			tempoption2.value = Xen2KHandle.classFunction[classindex-1][index][1][0].nodename;
+			tempoption2.innerText = Xen2KHandle.classFunction[classindex-1][index][1][0].numstr;
+			memberRow.appendChild(tempoption2);
+		}
+		memberRowgroup.appendChild(memberRow);
 	}
-	document.getElementById("classbackground"+classindex.toString()).appendChild(selectVariable);
-	background.innerHTML +="<br>멤버 함수";
-	var selectFunc = document.createElement("select");
-	for (var classmemberFunc of Xen2KHandle.classFunction[classindex]){
-		var tempoption = document.createElement("option");
-		tempoption.value = classmemberFunc;
-		tempoption.innerText = classmemberFunc;
-		selectFunc.appendChild(tempoption);
-	}
-	document.getElementById("classbackground"+classindex.toString()).appendChild(selectFunc);
+	background.appendChild(memberRowgroup);
+}
+
+function classvar_dragstart_handler(ev) {
+	ev.dataTransfer.setData("text/plain", ev.target.parentNode.parentNode.parentNode.value+","+ev.target.value+","+ev.target.innerHTML);
+}
+
+function EditMemberVar (ev) {
+	if (dataArray.length <3) return;
+	document.getElementById("classbackground" + dataArray[0].toString()).getElementsByClassName("membervarTable")[parseInt(dataArray[1])].innerHTML = ev.target.value;
 }
 
 function renderCanvas(){
@@ -1128,12 +1160,12 @@ Background.id = "ide_main";
 Background.style.display = "table-row-group";
 Background.innerHTML = "<div id = \"mainplate\"> \
        <canvas id=\"MainCanvas\" width=\"800px\" height=\"600px\"></canvas> \
-    </div> \
-	<span id = \"nodelist\" width=\"800px\" height=\"600px\"> \
-	Xen2K IDE<br>\
-    </span>";
+    </div>";
 document.getElementById("mw-content-text").appendChild(Background);
-
+Background.innerHTML += "<span id = \"nodelist\" width=\"800px\" height=\"600px\"> \
+	Xen2K IDE<br>\
+    </span>\
+	";
 var exportToFileButton = document.createElement("button");
 exportToFileButton.id = "saveButton";
 exportToFileButton.addEventListener("click", savehandler);
@@ -1154,7 +1186,7 @@ document.getElementById("ide_main").appendChild(consolepage);
 
 var classpage = document.createElement('div');
 classpage.id = "ide_class";
-classpage.innerHTML = "";
+classpage.innerHTML = "<input name=\"ide_VarEdit\" value=\"0\" onchange=\"EditMemberVar(event)\">";
 document.getElementById("mainplate").appendChild(classpage);
 
 var NodeArray = [];
@@ -1189,6 +1221,7 @@ window.addEventListener('DOMContentLoaded', () => {
 	for (var elem of element1) {
 		elem.addEventListener("dragstart", dragstart_handler);
 	}
+	
 	var element2 = document.getElementById("MainCanvas");
 	// Add the ondragstart event listener
 	element2.addEventListener("drop", drop_handler);
@@ -1200,7 +1233,9 @@ window.addEventListener('DOMContentLoaded', () => {
 	element2.addEventListener("mouseup",canvas_mouseup_handler);
 	element2.addEventListener("mousemove",canvas_mousemove_handler);
 	element2.addEventListener("wheel", canvas_wheel_handler);
-	document.addEventListener("keydown", canvas_keydown_handler);
+	element2.addEventListener("keydown", canvas_keydown_handler);
+	var elementMemVarEdit = document.getElementById("ide_class").querySelector("input");
+	elementMemVarEdit.addEventListener("drop", changeTargetMemberVar);
 	requestAnimationFrame(renderCanvas);
 	
 });
