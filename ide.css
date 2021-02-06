@@ -33,3 +33,8 @@
 #classManager {
 	display:table-cell;
 }
+#functioncanvas{
+	background-color:yellow;
+	overflow-x:scroll;
+	height: 40px;
+}

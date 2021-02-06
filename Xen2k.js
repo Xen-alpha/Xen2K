@@ -61,30 +61,6 @@ BreakLoop.prototype.toString = function () {
     return this.name + ': "' + this.message + '"';
 }
 
-function TaskTree () {
-	this.parentNode = null;
-	this.nodename = null; // number name, is number
-	this.leftBranch = null;
-	this.rightBranch = null;
-	this.numstr = NaN; // num is index of rootNodeList
-	this.push = (data, index) => {
-		if (this.name === null) {
-			this.name = data;
-			this.num = index; 
-			return;
-		}
-		if (data < this.name) {
-			if (this.leftBranch === null)this.leftBranch = new TaskTree();
-			this.leftBranch.push(data, index);
-			return;
-		} else {
-			if (this.rightBranch  === null) this.rightBranch = new TaskTree();
-			this.rightBranch.push(data, index);
-			return;
-		}
-	}
-}
-
 
 function DropdownMenu (menulist){
 	this.position = [0,0];
@@ -266,19 +242,24 @@ function Xen2K() {
 	this.classFunction = [];
 	// member functions
 	this.read = function(data){
-		var tempdata = data.split("\n! ");
-		var tempdata2 = tempdata[0].split("\n#");
-		data = tempdata2[1];
-		this.LoadToCanvas(data);
-		this.construction.push(data); // add to constructor array
-		this.classmember.push(tempdata2[0].split(","));
-		var tempArray = [];
-		for (var i = 1; i< tempdata.length; i++) {
-			var memberFuncTokens = [(i-1).toString(),this.tokenize(tempdata[i])];
-			tempArray.push(memberFuncTokens);
+		var classes = data.split("\n%");
+		for(var classtext of classes) {
+			var tempdata = classtext.split("\n! ");
+			var tempdata2 = tempdata[0].split("\n#");
+			var constructdata = tempdata2[1];
+			constructdata = this.tokenize(constructdata);
+			this.construction.push(constructdata); // add to constructor array
+			var tempArray = tempdata2[0].split(",");
+			tempArray.pop();
+			this.classmember.push(tempArray);
+			var tempArray = [];
+			for (var i = 1; i< tempdata.length; i++) {
+				var memberFuncTokens = [(i-1).toString(),this.tokenize(tempdata[i])];
+				tempArray.push(memberFuncTokens);
+			}
+			this.classFunction.push(tempArray);
+			AddClassToClassExplorer(this.classmember.length > this.classFunction.length? this.classmember.length:this.classFunction.length);
 		}
-		this.classFunction.push(tempArray);
-		AddClassToClassExplorer(this.classmember.length > this.classFunction.length? this.classmember.length:this.classFunction.length);
         return;
 	};
 	// parse: execute code
@@ -286,7 +267,7 @@ function Xen2K() {
         var tokens = this.tokenize(data);
         this.resultlist = [];
         this.instructionSequence = [];
-        this.currentNodeList = this.SetupTree(this.currentNodeList,tokens);
+        this.currentNodeList = bareNodeList = this.BuildCanvasBoxTree(tokens);
 		
         this.outcCalled = false;
         this.Traverse(false);
@@ -295,9 +276,10 @@ function Xen2K() {
 	this.LoadToCanvas = function(data) {
 		bareNodeList = [];
 		var tokens = this.tokenize(data);
-        this.BuildCanvasBoxTree(tokens);
+        bareNodeList = this.BuildCanvasBoxTree(tokens);
 	}
 	this.BuildCanvasBoxTree = function (tokens){
+		var resultNodeList = [];
 		var tempRootNodeList = [];
 		var currentNode = null;
 		var loopcount = 0;
@@ -371,77 +353,13 @@ function Xen2K() {
 		function linearize (elem) {
 			if (elem.leftBranch !== null)linearize(elem.leftBranch);
 			if (elem.rightBranch !== null)linearize(elem.rightBranch);
-			bareNodeList.push(elem);
+			resultNodeList.push(elem);
 		}
 		for (var elem of tempRootNodeList){
 			linearize(elem);
 		}
-		return;
+		return resultNodeList;
 	}
-	this.SetupTree = function(NodeList,tokens){
-		NodeList = [];
-		var currentNode = null;
-		var loopcount = 0;
-		var treeDepth = 0;
-		var indentcount = 0;
-		var instructioncalled = false;
-		for (var elem of tokens){
-			switch (elem){
-				case '/':
-					if (instructioncalled) {
-						indentcount += 1;
-						currentNode.leftBranch = new TaskTree();
-						currentNode.leftBranch.parentNode = currentNode;
-						currentNode = currentNode.leftBranch;
-					}
-					else {
-						currentNode = currentNode.parentNode; 
-						currentNode.rightBranch = new TaskTree();
-						currentNode.rightBranch.parentNode = currentNode;
-						currentNode = currentNode.rightBranch;
-					}
-					break;
-				case '=':
-					indentcount += 1;
-					currentNode.leftBranch = new TaskTree();
-					currentNode.leftBranch.parentNode = currentNode;
-					currentNode = currentNode.leftBranch;
-					break;
-				case '+':
-					currentNode = currentNode.parentNode; 
-					currentNode.rightBranch = new TaskTree();
-					currentNode.rightBranch.parentNode = currentNode;
-					currentNode = currentNode.rightBranch;
-					break;
-				case '\\':
-				case '.':
-					currentNode = currentNode.parentNode;
-					indentcount -= 1;
-					break;
-				case '*': //random
-				case '_': //previous
-					currentNode.nodename = elem;
-					currentNode.numstr = elem;
-					instructioncalled = false;
-					break;
-				case '>': // do nothing for now
-					break;
-				case '<':
-					// do nothing, because we already have passed this token 
-					break;
-				default: // instruction
-					if (indentcount === 0)currentNode = new TaskTree();
-					currentNode.nodename = elem;
-					currentNode.numstr = itoa(elem);
-					instructioncalled = true;
-			}
-			if (indentcount === 0 && instructioncalled === false){
-				NodeList.push(currentNode);
-			}
-			loopcount += 1;
-		}
-		return NodeList;
-	};
 	this.Traverse = (DoNotDisplay) => {
 		for (var rootnode of this.currentNodeList){
 			this.invoke([rootnode, rootnode.leftBranch, rootnode.rightBranch], DoNotDisplay);
@@ -716,8 +634,6 @@ function drop_handler(ev) {
 	AddNodeToCanvas([ev.offsetX, ev.offsetY], data);
 }
 
-
-
 var BranchPoint = 0;
 var DrawingLine = [[0,0], [0,0]];
 var BranchParent = null;
@@ -945,18 +861,29 @@ function canvas_keydown_handler(e){
 					}
 				}
 				bareNodeList.pop();
+				reflectToFunc();
 			} else if (deleteType === 1 && commentplateArray.length > 0){
 				commentplateArray.pop();
 			}
 		}
 	}
 }
-var rootNodeList =  [];
+
 function savehandler(e) {
-	if (bareNodeList.length === 0) return;
-	resultscript = "";
-	rootNodeList = [];
-	for (var nodeElem of bareNodeList){
+	
+}
+
+var rootNodeList =  [];
+function exporthandler(e) {
+	// member saving
+	var resultscript = "";
+	for (var member of Xen2KHandle.classmember){
+		resultscript += member.toString() + ",";
+	}
+	resultscript += "\n#";
+	//constructor saving
+	rootNodeList =  [];
+	for (var nodeElem of Xen2KHandle.BuildCanvasBoxTree(Xen2KHandle.construction[constructorArray[2]])){
 		if (nodeElem.parentNode === null) {
 			rootNodeList.push(nodeElem); //type: CanvasBox
 		}
@@ -977,9 +904,57 @@ function savehandler(e) {
 			}
 		}
 	}
+	
+	function recursiveScriptBuilder(targetnode){ // targetnode == a node of rootNodeList(CanvasBox)
+		if (targetnode.nodename === '*' || targetnode.nodename === '_') {
+			resultscript += targetnode.numstr;
+			return;
+		} else {
+			//function found
+			resultscript+=itoa(parseInt(targetnode.numstr));
+			resultscript += "=";
+			recursiveScriptBuilder(targetnode.leftBranch);
+			resultscript += "+";
+			recursiveScriptBuilder(targetnode.rightBranch);
+			resultscript+= ".";
+			return;
+		}
+	}
+	
 	for (var index1 of rootNodeList){
 		recursiveScriptBuilder(index1);
 	}
+	
+	for (var memberFunc of Xen2KHandle.classFunction[funcArray[0]]){
+		resultscript += "\n! ";
+		rootNodeList =  [];
+		for (var nodeElem of Xen2KHandle.BuildCanvasBoxTree(memberFunc[1])){
+			if (nodeElem.parentNode === null) {
+				rootNodeList.push(nodeElem); //type: CanvasBox
+			}
+		}
+		//Sorting
+		if (rootNodeList.length>= 2){
+			var sorted = false;
+			while (!sorted) {
+				sorted = true;
+				for (var index1 = 0; index1 < rootNodeList.length -1 ; index1++) {
+					if (rootNodeList[index1].position[0] > rootNodeList[index1+1].position[0]) {
+						sorted = false;
+						var temp = rootNodeList[index1];
+						rootNodeList[index1] = rootNodeList[index1+1];
+						rootNodeList[index1+1] = temp;
+					}
+
+				}
+			}
+		}
+		for (var index1 of rootNodeList){
+			recursiveScriptBuilder(index1);
+		}
+	}
+	
+	
 	// download the result
 	var file = new Blob([resultscript], {type:"text/plain"});
 	var a = document.createElement("a"),url = URL.createObjectURL(file);
@@ -992,23 +967,9 @@ function savehandler(e) {
 		window.URL.revokeObjectURL(url);  
 	}, 0);
 }
-var resultscript = "";
+
 // normal function
-function recursiveScriptBuilder(targetnode){ // targetnode == a node of rootNodeList(CanvasBox)
-	if (targetnode.nodename === '*' || targetnode.nodename === '_') {
-		resultscript += targetnode.numstr;
-		return;
-	} else {
-		//function found
-		resultscript+=itoa(parseInt(targetnode.numstr));
-		resultscript += "=";
-		recursiveScriptBuilder(targetnode.leftBranch);
-		resultscript += "+";
-		recursiveScriptBuilder(targetnode.rightBranch);
-		resultscript+= ".";
-		return;
-	}
-}
+
 
 function AddNodeToCanvas(pos, NodeName) {
 	for (var node in NodeArray){
@@ -1017,10 +978,71 @@ function AddNodeToCanvas(pos, NodeName) {
 			Object.assign(sourceNode, NodeArray[node]);
 			sourceNode.SetPosition(pos[0], pos[1]);
 			bareNodeList.push(sourceNode);
+			reflectToFunc();
 			break;
 		}
 	}
 }
+
+function reflectToFunc() {
+	var resultArray = [];
+	var rootNodeList =  [];
+	if (constructorLoaded){
+		for (var nodeElem of Xen2KHandle.BuildCanvasBoxTree(Xen2KHandle.construction[constructorArray[2]])){
+			if (nodeElem.parentNode === null) {
+				rootNodeList.push(nodeElem); //type: CanvasBox
+			}
+		}
+	} else {
+		for (var nodeElem of Xen2KHandle.BuildCanvasBoxTree(Xen2KHandle.classFunction[funcArray[0]][funcArray[1]])){
+			if (nodeElem.parentNode === null) {
+				rootNodeList.push(nodeElem); //type: CanvasBox
+			}
+		}
+	}
+	
+	//Sorting
+	if (rootNodeList.length>= 2){
+		var sorted = false;
+		while (!sorted) {
+			sorted = true;
+			for (var index1 = 0; index1 < rootNodeList.length -1 ; index1++) {
+				if (rootNodeList[index1].position[0] > rootNodeList[index1+1].position[0]) {
+					sorted = false;
+					var temp = rootNodeList[index1];
+					rootNodeList[index1] = rootNodeList[index1+1];
+					rootNodeList[index1+1] = temp;
+				}
+
+			}
+		}
+	}
+	
+	function recursiveScriptBuilder(targetnode){ // targetnode == a node of bareNodeList(CanvasBox)
+		if (targetnode.nodename === '*' || targetnode.nodename === '_') {
+			resultArray.push(targetnode.numstr);
+			return;
+		} else {
+			//function found
+			resultArray.push(itoa(parseInt(targetnode.numstr)));
+			resultArray.push("=");
+			if (targetnode.leftBranch !== null)recursiveScriptBuilder(targetnode.leftBranch);
+			resultArray.push("+");
+			if (targetnode.rightBranch !== null)recursiveScriptBuilder(targetnode.rightBranch);
+			resultArray.push(".");
+			return;
+		}
+	}
+	for (var index1 of rootNodeList){
+		recursiveScriptBuilder(index1);
+	}
+	if (constructorLoaded){
+		Xen2KHandle.construction[constructorArray[2]] = resultArray;
+	} else {
+		Xen2KHandle.classFunction[funcArray[0]][funcArray[1]]= resultArray;
+	}
+}
+
 function AddClassToClassExplorer (classindex) {
 	var background = document.createElement("div");
 	background.id="classbackground"+(classindex-1).toString();
@@ -1053,6 +1075,7 @@ function AddClassToClassExplorer (classindex) {
 			tempoption2.className = "memberFuncTable"+index.toString();
 			tempoption2.style.display = "table-cell";
 			tempoption2.value = Xen2KHandle.classFunction[classindex-1][index][1]; // tokenized Array
+			tempoption2.addEventListener("dblclick", classFunc_dbclick_handler);
 			tempoption2.innerText = Xen2KHandle.classFunction[classindex-1][index][0]; // name
 			memberRow.appendChild(tempoption2);
 		}
@@ -1061,16 +1084,27 @@ function AddClassToClassExplorer (classindex) {
 	background.appendChild(memberRowgroup);
 }
 
-var dataArray =[];
+var dataArray = [];
+var constructorArray = [];
+var funcArray = [];
+var constructorLoaded = false;
 
 function loadConstructor(ev) {
-	Xen2KHandle.LoadToCanvas(Xen2KHandle.construction[ev.target.parentNode.parentNode.parentNode.parentNode.value]);
+	bareNodeList = Xen2KHandle.BuildCanvasBoxTree(Xen2KHandle.construction[ev.target.parentNode.parentNode.parentNode.parentNode.value]);
+	constructorArray = [ev.target.parentNode.parentNode.parentNode.value, ev.target.parentNode.value, ev.target.parentNode.parentNode.parentNode.parentNode.value];
+	constructorLoaded = true;
 }
 
 function classvar_dbclick_handler(ev) {
 	dataArray = [ev.target.parentNode.parentNode.parentNode.value, ev.target.parentNode.value, ev.target.innerHTML];
 	var elementMemVarEdit = document.getElementById("ide_class").querySelector("input");
 	elementMemVarEdit.value = dataArray[2];
+}
+
+function classFunc_dbclick_handler(ev) {
+	bareNodeList = Xen2KHandle.BuildCanvasBoxTree(ev.target.value);
+	funcArray = [ev.target.parentNode.parentNode.parentNode.value, ev.target.parentNode.value, ev.target.value];
+	constructorLoaded = false;
 }
 
 function EditMemberVar (ev) {
@@ -1161,25 +1195,32 @@ var bareNodeList = [];
 var Background = document.createElement('div');
 Background.id = "ide_main";
 Background.style.display = "table-row-group";
-Background.innerHTML = "<div id = \"mainplate\"> \
+Background.innerHTML = "<div id=\"functioncanvas\"></div>\
+<div id = \"mainplate\"> \
        <canvas id=\"MainCanvas\" width=\"800px\" height=\"600px\"></canvas> \
     </div>";
 document.getElementById("mw-content-text").appendChild(Background);
 Background.innerHTML += "<span id = \"nodelist\" width=\"800px\" height=\"600px\"> \
 	Xen2K IDE<br>\
-    </span>\
-	";
+    </span>";
+
+var SaveButton = document.createElement("button");
+SaveButton.id = "saveButton";
+SaveButton.addEventListener("click", savehandler);
+SaveButton.innerText = "Save";
+document.getElementById("ide_main").appendChild(SaveButton);
+	
 var exportToFileButton = document.createElement("button");
-exportToFileButton.id = "saveButton";
-exportToFileButton.addEventListener("click", savehandler);
-exportToFileButton.innerText = "Save";
+exportToFileButton.id = "exportButton";
+exportToFileButton.addEventListener("click", exporthandler);
+exportToFileButton.innerText = "Export To X2K";
 document.getElementById("ide_main").appendChild(exportToFileButton); 
 
 var formElement = document.createElement('form');
 formElement.name = "uploadedFile";
 formElement.innerHTML = "\
 	  <span>꾸러미 가져오기</span>\
-      <input id=\"uploadInput\" type=\"file\" name=\"myFiles\" onchange=\"onChangeFile(event)\" multiple>";
+      <input id=\"uploadInput\" type=\"file\" name=\"myFiles\" onchange=\"onChangeFile(event)\">";
 document.getElementById("ide_main").appendChild(formElement);
 
 var consolepage = document.createElement('div');
@@ -1189,7 +1230,7 @@ document.getElementById("ide_main").appendChild(consolepage);
 
 var classpage = document.createElement('div');
 classpage.id = "ide_class";
-classpage.innerHTML = "<input name=\"ide_VarEdit\" onchange=\"EditMemberVar(event)\">";
+classpage.innerHTML = "변수 수정<input name=\"ide_VarEdit\" onchange=\"EditMemberVar(event)\">";
 document.getElementById("mainplate").appendChild(classpage);
 
 var NodeArray = [];
@@ -1236,7 +1277,7 @@ window.addEventListener('DOMContentLoaded', () => {
 	element2.addEventListener("mouseup",canvas_mouseup_handler);
 	element2.addEventListener("mousemove",canvas_mousemove_handler);
 	element2.addEventListener("wheel", canvas_wheel_handler);
-	element2.addEventListener("keydown", canvas_keydown_handler);
+	element2.parentNode.addEventListener("keydown", canvas_keydown_handler);
 	
 	requestAnimationFrame(renderCanvas);
 	
