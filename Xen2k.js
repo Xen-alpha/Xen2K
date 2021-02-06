@@ -837,7 +837,7 @@ function canvas_doubleclick_handler(e){
 }
 
 function canvas_keydown_handler(e){
-	e.preventDefault();
+	//e.preventDefault();
 	if (typingComment !== null) {
 		// editing typingComment
 		if (e.key === "Backspace") typingComment.nodename = typingComment.nodename.slice(0, typingComment.nodename.length-1);
@@ -875,9 +875,10 @@ function savehandler(e) {
 
 var rootNodeList =  [];
 function exporthandler(e) {
+	if (Xen2KHandle.construction.length === 0) return;
 	// member saving
 	var resultscript = "";
-	for (var member of Xen2KHandle.classmember){
+	for (var member of Xen2KHandle.classmember[dataArray[0]]){
 		resultscript += member.toString() + ",";
 	}
 	resultscript += "\n#";
@@ -1024,7 +1025,7 @@ function reflectToFunc() {
 			return;
 		} else {
 			//function found
-			resultArray.push(itoa(parseInt(targetnode.numstr)));
+			resultArray.push(targetnode.numstr);
 			resultArray.push("=");
 			if (targetnode.leftBranch !== null)recursiveScriptBuilder(targetnode.leftBranch);
 			resultArray.push("+");
@@ -1084,9 +1085,9 @@ function AddClassToClassExplorer (classindex) {
 	background.appendChild(memberRowgroup);
 }
 
-var dataArray = [];
-var constructorArray = [];
-var funcArray = [];
+var dataArray = [0, 0, 0];
+var constructorArray = [0, 0, 0];
+var funcArray = [0, 0, 0];
 var constructorLoaded = false;
 
 function loadConstructor(ev) {
@@ -1277,7 +1278,7 @@ window.addEventListener('DOMContentLoaded', () => {
 	element2.addEventListener("mouseup",canvas_mouseup_handler);
 	element2.addEventListener("mousemove",canvas_mousemove_handler);
 	element2.addEventListener("wheel", canvas_wheel_handler);
-	element2.parentNode.addEventListener("keydown", canvas_keydown_handler);
+	document.getElementById("mw-content-text").addEventListener("keydown", canvas_keydown_handler);
 	
 	requestAnimationFrame(renderCanvas);
 	
