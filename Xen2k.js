@@ -240,9 +240,14 @@ function Xen2K() {
 	this.construction = [];
 	this.classmember = [];
 	this.classFunction = [];
-	// member functions
+	
+	// read: parse code and set a binary CanvasBox Tree
 	this.read = function(data){
-		var classes = data.split("\n%");
+		this.construction = [];
+		this.classmember = [];
+		this.classFunction = [];
+		var classes = data.split("\n&\n");
+		classes.pop();
 		for(var classtext of classes) {
 			var tempdata = classtext.split("\n! ");
 			var tempdata2 = tempdata[0].split("\n#");
@@ -262,14 +267,15 @@ function Xen2K() {
 		}
         return;
 	};
+	/*
 	// parse: execute code
-	this.parse = function(data){
+	this.execute = function(data){
         var tokens = this.tokenize(data);
         this.resultlist = [];
         this.instructionSequence = [];
         this.currentNodeList = bareNodeList = this.BuildCanvasBoxTree(tokens);
-		
         this.outcCalled = false;
+		//execute
         this.Traverse(false);
 	};
 	//LoadToCanvas: Load Code Tree to canvas
@@ -278,6 +284,7 @@ function Xen2K() {
 		var tokens = this.tokenize(data);
         bareNodeList = this.BuildCanvasBoxTree(tokens);
 	}
+	*/
 	this.BuildCanvasBoxTree = function (tokens){
 		var resultNodeList = [];
 		var tempRootNodeList = [];
@@ -606,16 +613,15 @@ function Xen2K() {
 
 // callback functions
 function onChangeFile(event) {
+	document.getElementById("ide_class").innerHTML = "변수 수정<input name=\"ide_VarEdit\" onchange=\"EditMemberVar(event)\">";
 	var fileText;
-	var file = event.target.files;
-	for (var f of file) {
-		var reader = new FileReader();
-		reader.onload = function(e) {
-		  fileText = e.target.result;
-		  Xen2KHandle.read(fileText);
-		};
-		reader.readAsText(f);
-	}
+	var file = event.target.files[0];
+	var reader = new FileReader();
+	reader.onload = function(e) {
+	  fileText = e.target.result;
+	  Xen2KHandle.read(fileText);
+	};
+	reader.readAsText(file);
 }
 
 function dragstart_handler(ev) {
@@ -870,7 +876,18 @@ function canvas_keydown_handler(e){
 }
 
 function savehandler(e) {
-	
+	if (Xen2KHandle !== null){
+		localStorage = window.localStorage;
+		localStorage.setItem("X2Kcount", Xen2KHandle.construction.length.toString());
+		for (var index in Xen2KHandle.construction){
+			localStorage.setItem("constructor"+index.toString(), Xen2KHandle.construction[index]);
+			localStorage.setItem("memvar"+index.toString(), Xen2KHandle.classmember[index]);
+			window.localStorage.setItem("X2KClassFuncCount"+ index.toString(), Xen2KHandle.classFunction[index].length);
+			for (var index2 in Xen2KHandle.classFunction[index]) {
+				localStorage.setItem("memfunc"+index.toString()+"_"+index2.toString(), Xen2KHandle.classFunction[index][index2]);
+			}
+		}
+	}
 }
 
 var rootNodeList =  [];
@@ -878,58 +895,14 @@ function exporthandler(e) {
 	if (Xen2KHandle.construction.length === 0) return;
 	// member saving
 	var resultscript = "";
-	for (var member of Xen2KHandle.classmember[dataArray[0]]){
-		resultscript += member.toString() + ",";
-	}
-	resultscript += "\n#";
-	//constructor saving
-	rootNodeList =  [];
-	for (var nodeElem of Xen2KHandle.BuildCanvasBoxTree(Xen2KHandle.construction[constructorArray[2]])){
-		if (nodeElem.parentNode === null) {
-			rootNodeList.push(nodeElem); //type: CanvasBox
+	for (var index0 in Xen2KHandle.construction) {
+		for (var member of Xen2KHandle.classmember[index0]){
+			resultscript += member.toString() + ",";
 		}
-	}
-	//Sorting
-	if (rootNodeList.length>= 2){
-		var sorted = false;
-		while (!sorted) {
-			sorted = true;
-			for (var index1 = 0; index1 < rootNodeList.length -1 ; index1++) {
-				if (rootNodeList[index1].position[0] > rootNodeList[index1+1].position[0]) {
-					sorted = false;
-					var temp = rootNodeList[index1];
-					rootNodeList[index1] = rootNodeList[index1+1];
-					rootNodeList[index1+1] = temp;
-				}
-
-			}
-		}
-	}
-	
-	function recursiveScriptBuilder(targetnode){ // targetnode == a node of rootNodeList(CanvasBox)
-		if (targetnode.nodename === '*' || targetnode.nodename === '_') {
-			resultscript += targetnode.numstr;
-			return;
-		} else {
-			//function found
-			resultscript+=itoa(parseInt(targetnode.numstr));
-			resultscript += "=";
-			recursiveScriptBuilder(targetnode.leftBranch);
-			resultscript += "+";
-			recursiveScriptBuilder(targetnode.rightBranch);
-			resultscript+= ".";
-			return;
-		}
-	}
-	
-	for (var index1 of rootNodeList){
-		recursiveScriptBuilder(index1);
-	}
-	
-	for (var memberFunc of Xen2KHandle.classFunction[funcArray[0]]){
-		resultscript += "\n! ";
+		resultscript += "\n#";
+		//constructor saving
 		rootNodeList =  [];
-		for (var nodeElem of Xen2KHandle.BuildCanvasBoxTree(memberFunc[1])){
+		for (var nodeElem of Xen2KHandle.BuildCanvasBoxTree(Xen2KHandle.construction[index0])){
 			if (nodeElem.parentNode === null) {
 				rootNodeList.push(nodeElem); //type: CanvasBox
 			}
@@ -950,11 +923,57 @@ function exporthandler(e) {
 				}
 			}
 		}
+		
+		function recursiveScriptBuilder(targetnode){ // targetnode == a node of rootNodeList(CanvasBox)
+			if (targetnode.nodename === '*' || targetnode.nodename === '_') {
+				resultscript += targetnode.numstr;
+				return;
+			} else {
+				//function found
+				resultscript+=itoa(parseInt(targetnode.numstr));
+				resultscript += "=";
+				recursiveScriptBuilder(targetnode.leftBranch);
+				resultscript += "+";
+				recursiveScriptBuilder(targetnode.rightBranch);
+				resultscript+= ".";
+				return;
+			}
+		}
+		
 		for (var index1 of rootNodeList){
 			recursiveScriptBuilder(index1);
 		}
+		
+		for (var memberFunc of Xen2KHandle.classFunction[index0]){
+			resultscript += "\n! ";
+			rootNodeList =  [];
+			for (var nodeElem of Xen2KHandle.BuildCanvasBoxTree(memberFunc[1])){
+				if (nodeElem.parentNode === null) {
+					rootNodeList.push(nodeElem); //type: CanvasBox
+				}
+			}
+			//Sorting
+			if (rootNodeList.length>= 2){
+				var sorted = false;
+				while (!sorted) {
+					sorted = true;
+					for (var index1 = 0; index1 < rootNodeList.length -1 ; index1++) {
+						if (rootNodeList[index1].position[0] > rootNodeList[index1+1].position[0]) {
+							sorted = false;
+							var temp = rootNodeList[index1];
+							rootNodeList[index1] = rootNodeList[index1+1];
+							rootNodeList[index1+1] = temp;
+						}
+
+					}
+				}
+			}
+			for (var index1 of rootNodeList){
+				recursiveScriptBuilder(index1);
+			}
+		}
+		resultscript += "\n&\n";
 	}
-	
 	
 	// download the result
 	var file = new Blob([resultscript], {type:"text/plain"});
@@ -1044,6 +1063,8 @@ function reflectToFunc() {
 	}
 }
 
+var Xen2KHandle = new Xen2K();
+
 function AddClassToClassExplorer (classindex) {
 	var background = document.createElement("div");
 	background.id="classbackground"+(classindex-1).toString();
@@ -1054,7 +1075,7 @@ function AddClassToClassExplorer (classindex) {
 	
 	var memberRowgroup = document.createElement("div");
 	memberRowgroup.style.display = "table-row-group";
-	for (var index = 0; index < (Xen2KHandle.classmember[classindex-1].length > Xen2KHandle.classFunction[classindex-1].length ? Xen2KHandle.classmember[classindex-1].length:Xen2KHandle.classFunction[classindex-1].length ); index++){
+	for (var index = 0; index < (Xen2KHandle.classmember[classindex-1].length > Xen2KHandle.classFunction[classindex-1].length ? Xen2KHandle.classmember[classindex-1].length : Xen2KHandle.classFunction[classindex-1].length); index++){
 		var memberRow = document.createElement("div");
 		memberRow.value = index;
 		memberRow.style.display = "table-row";
@@ -1141,7 +1162,6 @@ function renderCanvas(){
 	requestAnimationFrame(renderCanvas);
 }
 
-var Xen2KHandle = new Xen2K();
 var FunctionInfoDefault = [
 		['1001', "DEFCANVAS"],
 		['1015', "DEFVECTOR"],
@@ -1208,13 +1228,13 @@ Background.innerHTML += "<span id = \"nodelist\" width=\"800px\" height=\"600px\
 var SaveButton = document.createElement("button");
 SaveButton.id = "saveButton";
 SaveButton.addEventListener("click", savehandler);
-SaveButton.innerText = "Save";
+SaveButton.innerText = "임시저장";
 document.getElementById("ide_main").appendChild(SaveButton);
 	
 var exportToFileButton = document.createElement("button");
 exportToFileButton.id = "exportButton";
 exportToFileButton.addEventListener("click", exporthandler);
-exportToFileButton.innerText = "Export To X2K";
+exportToFileButton.innerText = "X2K로 내보내기";
 document.getElementById("ide_main").appendChild(exportToFileButton); 
 
 var formElement = document.createElement('form');
@@ -1259,7 +1279,25 @@ for (var node of NodeArray) {
 
 }
 
+
+
 window.addEventListener('DOMContentLoaded', () => {
+	if (parseInt(window.localStorage.getItem("X2Kcount")) > 0 ){
+		Xen2KHandle.classFunction = new Array(parseInt(window.localStorage.getItem("X2Kcount")));
+		for (var i = 0; i < parseInt(window.localStorage.getItem("X2Kcount"));i++){
+			Xen2KHandle.construction.push(window.localStorage.getItem("constructor"+i.toString()).split(","));
+			if (window.localStorage.getItem("memvar"+i.toString()) !== null) Xen2KHandle.classmember.push(window.localStorage.getItem("memvar"+i.toString()).split(","));
+			Xen2KHandle.classFunction[i]= new Array(parseInt(window.localStorage.getItem("X2KClassFuncCount"+ i.toString())));
+			for (var j =0; j < parseInt(window.localStorage.getItem("X2KClassFuncCount"+ i.toString())); j++) {
+				if (window.localStorage.getItem("memfunc"+i.toString()+"_"+j.toString()) !== null) {
+					var tempArray = window.localStorage.getItem("memfunc"+i.toString()+"_"+j.toString()).split(",");
+					Xen2KHandle.classFunction[i][j] =[j, tempArray.slice(1, tempArray.length)];
+				}
+			}
+			AddClassToClassExplorer(i+1);
+		}
+	}
+	
 	// Get the element by id
 	var element1 = document.getElementsByClassName("nodes");
 	// Add the ondragstart event listener
