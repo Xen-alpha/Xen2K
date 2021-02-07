@@ -25,6 +25,7 @@
 }
 #ide_class {
 	width: 425px;
+	height: 400px;
 	vertical-align: top;
 	display:table-cell;
 	background-color: blueviolet;
