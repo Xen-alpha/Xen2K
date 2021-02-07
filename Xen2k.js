@@ -258,34 +258,18 @@ function Xen2K() {
 			tempArray.pop();
 			this.classmember.push(tempArray);
 			var tempArray = [];
-			for (var i = 1; i< tempdata.length; i++) {
-				var memberFuncTokens = [(i-1).toString(),this.tokenize(tempdata[i])];
+			for (var i = 0; i< tempdata.length-1; i++) {
+				var memberFuncTokens = this.tokenize(tempdata[i+1]);
 				tempArray.push(memberFuncTokens);
 			}
 			this.classFunction.push(tempArray);
-			AddClassToClassExplorer(this.classmember.length > this.classFunction.length? this.classmember.length:this.classFunction.length);
+			addClassToClassExplorer(this.construction.length);
 		}
+		savehandler();
         return;
 	};
-	/*
-	// parse: execute code
-	this.execute = function(data){
-        var tokens = this.tokenize(data);
-        this.resultlist = [];
-        this.instructionSequence = [];
-        this.currentNodeList = bareNodeList = this.BuildCanvasBoxTree(tokens);
-        this.outcCalled = false;
-		//execute
-        this.Traverse(false);
-	};
-	//LoadToCanvas: Load Code Tree to canvas
-	this.LoadToCanvas = function(data) {
-		bareNodeList = [];
-		var tokens = this.tokenize(data);
-        bareNodeList = this.BuildCanvasBoxTree(tokens);
-	}
-	*/
 	this.BuildCanvasBoxTree = function (tokens){
+		if (tokens === []) return [];
 		var resultNodeList = [];
 		var tempRootNodeList = [];
 		var currentNode = null;
@@ -613,13 +597,15 @@ function Xen2K() {
 
 // callback functions
 function onChangeFile(event) {
-	document.getElementById("ide_class").innerHTML = "변수 수정<input name=\"ide_VarEdit\" onchange=\"EditMemberVar(event)\">";
+	document.getElementById("ide_class").innerHTML = "변수 수정<input id=\"varEdit\" name=\"ide_VarEdit\" onchange=\"EditMemberVar(event)\">";
+	document.getElementById("ide_class").innerHTML += "<button onclick=\"createClass(event)\">새 클래스 만들기</button>"
 	var fileText;
 	var file = event.target.files[0];
 	var reader = new FileReader();
 	reader.onload = function(e) {
 	  fileText = e.target.result;
 	  Xen2KHandle.read(fileText);
+	  savehandler();
 	};
 	reader.readAsText(file);
 }
@@ -875,19 +861,38 @@ function canvas_keydown_handler(e){
 	}
 }
 
+function loadhandler() {
+	if (parseInt(window.localStorage.getItem("X2Kcount")) > 0 ){
+		Xen2KHandle.construction = new Array(parseInt(window.localStorage.getItem("X2Kcount")));
+		Xen2KHandle.classFunction = new Array(parseInt(window.localStorage.getItem("X2Kcount")));
+		for (var i = 0; i < parseInt(window.localStorage.getItem("X2Kcount"));i++){
+			Xen2KHandle.construction[i] = window.localStorage.getItem("constructor"+i.toString()).split(","); // constructor
+			if (window.localStorage.getItem("memvar"+i.toString()) !== null) Xen2KHandle.classmember[i] = (window.localStorage.getItem("memvar"+i.toString()).split(","));// member variable
+			Xen2KHandle.classFunction[i]= new Array(parseInt(window.localStorage.getItem("X2KClassFuncCount"+ i.toString())));
+			for (var j =0; j < parseInt(window.localStorage.getItem("X2KClassFuncCount"+ i.toString())); j++) {
+					var tempArray = window.localStorage.getItem("memfunc"+i.toString()+"_"+j.toString()).split(",");
+					Xen2KHandle.classFunction[i][j] =tempArray;
+			}
+			addClassToClassExplorer(i+1);
+		}
+	}
+}
+
 function savehandler(e) {
-	if (Xen2KHandle !== null){
-		localStorage = window.localStorage;
-		localStorage.setItem("X2Kcount", Xen2KHandle.construction.length.toString());
-		for (var index in Xen2KHandle.construction){
-			localStorage.setItem("constructor"+index.toString(), Xen2KHandle.construction[index]);
-			localStorage.setItem("memvar"+index.toString(), Xen2KHandle.classmember[index]);
+	localStorage = window.localStorage;
+	localStorage.setItem("X2Kcount", Xen2KHandle.construction.length);
+	for (var index = 0; index < Xen2KHandle.construction.length; index++){
+		localStorage.setItem("constructor"+index.toString(), Xen2KHandle.construction[index]);
+		localStorage.setItem("memvar"+index.toString(), Xen2KHandle.classmember[index]);
+		if (Xen2KHandle.classFunction[index].length >0) {
 			window.localStorage.setItem("X2KClassFuncCount"+ index.toString(), Xen2KHandle.classFunction[index].length);
 			for (var index2 in Xen2KHandle.classFunction[index]) {
 				localStorage.setItem("memfunc"+index.toString()+"_"+index2.toString(), Xen2KHandle.classFunction[index][index2]);
 			}
 		}
 	}
+	reflectToFunc();
+	addClassToClassExplorer(Xen2KHandle.construction.length);
 }
 
 var rootNodeList =  [];
@@ -1006,18 +1011,11 @@ function AddNodeToCanvas(pos, NodeName) {
 
 function reflectToFunc() {
 	var resultArray = [];
+	var sourceArray = [];
 	var rootNodeList =  [];
-	if (constructorLoaded){
-		for (var nodeElem of Xen2KHandle.BuildCanvasBoxTree(Xen2KHandle.construction[constructorArray[2]])){
-			if (nodeElem.parentNode === null) {
-				rootNodeList.push(nodeElem); //type: CanvasBox
-			}
-		}
-	} else {
-		for (var nodeElem of Xen2KHandle.BuildCanvasBoxTree(Xen2KHandle.classFunction[funcArray[0]][funcArray[1]])){
-			if (nodeElem.parentNode === null) {
-				rootNodeList.push(nodeElem); //type: CanvasBox
-			}
+	for (var nodeElem of bareNodeList){
+		if (nodeElem.parentNode === null) {
+			rootNodeList.push(nodeElem); //type: CanvasBox
 		}
 	}
 	
@@ -1065,10 +1063,19 @@ function reflectToFunc() {
 
 var Xen2KHandle = new Xen2K();
 
-function AddClassToClassExplorer (classindex) {
+function createClass() {
+	Xen2KHandle.construction.push(new Array(0));
+	Xen2KHandle.classmember.push(new Array(0));
+	Xen2KHandle.classFunction.push(new Array(0));
+	addClassToClassExplorer(Xen2KHandle.construction.length);
+}
+
+function addClassToClassExplorer (classindex) { // parameter: length of Class
+	var oldClass = document.getElementById("classbackground"+(classindex-1).toString());
+	if (oldClass != null || oldClass != undefined) document.getElementById("ide_class").removeChild(oldClass);
 	var background = document.createElement("div");
 	background.id="classbackground"+(classindex-1).toString();
-	background.style="width:296px;height:100px;display:table;border:2px solid";
+	background.style="width:396px;height:100px;display:table;border:2px solid";
 	background.value= classindex-1;
 	background.innerHTML = "<div width=\"100%\" style=\"display:table-header-group;border:2px solid;\"><div style=\"display:table-cell\">class "+(classindex-1).toString() + "</div><div style=\"display:table-cell\">멤버 변수</div><div style=\"display:table-cell\">멤버 함수</div></div>";
 	document.getElementById("ide_class").appendChild(background);
@@ -1081,29 +1088,81 @@ function AddClassToClassExplorer (classindex) {
 		memberRow.style.display = "table-row";
 		var nulloption = document.createElement("div");
 		nulloption.style.display = "table-cell";
+		nulloption.style.width = "80px";
 		if (index === 0) nulloption.innerHTML = "<button onclick=\"loadConstructor(event)\">생성자</button>"
 		memberRow.appendChild(nulloption);
 		// member variable
 		if (Xen2KHandle.classmember[classindex-1][index] !== undefined) {
-			var tempoption = document.createElement("div");
+			var elem = document.createElement("div");
+			elem.style.display = "table-cell";
+			elem.style.width = "160px";
+			memberRow.appendChild(elem);
+			var memberCheckBox = document.createElement("input");
+			memberCheckBox.id = "VarcheckBox" + (classindex-1).toString()+"_"+index.toString();
+			memberCheckBox.type = "checkbox";
+			memberCheckBox.checked = false;
+			elem.appendChild(memberCheckBox);
+			var tempoption = document.createElement("span");
 			tempoption.className = "membervarTable"+index.toString();
-			tempoption.style.display = "table-cell";
 			tempoption.addEventListener("dblclick", classvar_dbclick_handler);
-			tempoption.innerText = Xen2KHandle.classmember[classindex-1][index];
-			memberRow.appendChild(tempoption);
+			elem.appendChild(tempoption);
+			tempoption.innerHTML += Xen2KHandle.classmember[classindex-1][index];
 		}
+		// member function
 		if (Xen2KHandle.classFunction[classindex-1][index] !== undefined){
-			var tempoption2 = document.createElement("div");
+			var elem = document.createElement("div");
+			elem.style.display = "table-cell";
+			elem.style.width = "160px";
+			memberRow.appendChild(elem);
+			var memberCheckBox = document.createElement("input");
+			memberCheckBox.id = "FunccheckBox" + (classindex-1).toString()+"_"+index.toString();
+			memberCheckBox.type = "checkbox";
+			memberCheckBox.checked = false;
+			elem.appendChild(memberCheckBox);
+			var tempoption2 = document.createElement("span");
 			tempoption2.className = "memberFuncTable"+index.toString();
-			tempoption2.style.display = "table-cell";
-			tempoption2.value = Xen2KHandle.classFunction[classindex-1][index][1]; // tokenized Array
+			tempoption2.value = Xen2KHandle.classFunction[classindex-1][index]; // tokenized Array
 			tempoption2.addEventListener("dblclick", classFunc_dbclick_handler);
-			tempoption2.innerText = Xen2KHandle.classFunction[classindex-1][index][0]; // name
-			memberRow.appendChild(tempoption2);
+			elem.appendChild(tempoption2);
+			tempoption2.innerHTML += "Func("+Xen2KHandle.classFunction[classindex-1][index][0]+"...)"; // first element of tokenized Array as name
 		}
 		memberRowgroup.appendChild(memberRow);
 	}
+	
 	background.appendChild(memberRowgroup);
+	// some buttons
+	var memberModifyButtons = document.createElement("div");
+	memberModifyButtons.style.display = "table-row";
+	var nulloption = document.createElement("div");
+	nulloption.style.display = "table-cell";
+	memberModifyButtons.appendChild(nulloption);
+	var memberVarModifyButtons = document.createElement("div");
+	memberVarModifyButtons.style.display = "table-cell";
+	var memVarAdd = document.createElement("button");
+	memVarAdd.onclick = createMemVar;
+	memVarAdd.innerText = "변수 생성";
+	memVarAdd.value = classindex-1;
+	memberVarModifyButtons.appendChild(memVarAdd);
+	var memVarDel = document.createElement("button");
+	memVarDel.onclick = deleteMemVar;
+	memVarDel.innerText = "변수 제거";
+	memVarDel.value = classindex-1;
+	memberVarModifyButtons.appendChild(memVarDel);
+	memberModifyButtons.appendChild(memberVarModifyButtons);
+	var memberFuncModifyButtons = document.createElement("div");
+	memberFuncModifyButtons.style.display = "table-cell";
+	var memFuncAdd = document.createElement("button");
+	memFuncAdd.onclick = createMemFunc;
+	memFuncAdd.innerText = "함수 생성";
+	memFuncAdd.value = classindex-1;
+	memberFuncModifyButtons.appendChild(memFuncAdd);
+	var memFuncDel = document.createElement("button");
+	memFuncDel.onclick = deleteMemFunc;
+	memFuncDel.value = classindex-1;
+	memFuncDel.innerText = "함수 제거";
+	memberFuncModifyButtons.appendChild(memFuncDel);
+	memberModifyButtons.appendChild(memberFuncModifyButtons);
+	memberRowgroup.appendChild(memberModifyButtons);
 }
 
 var dataArray = [0, 0, 0];
@@ -1117,21 +1176,62 @@ function loadConstructor(ev) {
 	constructorLoaded = true;
 }
 
+function createMemVar(ev) {
+	Xen2KHandle.classmember[ev.target.value].push("새 변수");
+	document.getElementById("ide_class").innerHTML = "변수 수정<input id=\"varEdit\" name=\"ide_VarEdit\" onchange=\"EditMemberVar(event)\">";
+	document.getElementById("ide_class").innerHTML += "<button onclick=\"createClass(event)\">새 클래스 만들기</button>"
+	for (var i = 0 ; i < ev.target.value+1; i++){
+		addClassToClassExplorer(i+1);
+	}		
+}
+function deleteMemVar(ev) {
+	for (var index in Xen2KHandle.classmember[ev.target.value]){
+		if (document.getElementById("VarcheckBox" + (ev.target.value).toString()+"_"+index.toString()).checked) Xen2KHandle.classmember[ev.target.value].splice(index,1);
+	}
+	document.getElementById("ide_class").innerHTML = "변수 수정<input id=\"varEdit\" name=\"ide_VarEdit\" onchange=\"EditMemberVar(event)\">";
+	document.getElementById("ide_class").innerHTML += "<button onclick=\"createClass(event)\">새 클래스 만들기</button>"
+	for (var i = 0 ; i < ev.target.value+1; i++){
+		addClassToClassExplorer(i+1);
+	}		
+}
+function createMemFunc(ev) {
+	Xen2KHandle.classFunction[ev.target.value].push(new Array(0));
+	document.getElementById("ide_class").innerHTML = "변수 수정<input id=\"varEdit\" name=\"ide_VarEdit\" onchange=\"EditMemberVar(event)\">";
+	document.getElementById("ide_class").innerHTML += "<button onclick=\"createClass(event)\">새 클래스 만들기</button>"
+	for (var i = 0 ; i < ev.target.value+1; i++){
+		addClassToClassExplorer(i+1);
+	}	
+}
+function deleteMemFunc(ev) {
+	for (var index in Xen2KHandle.classmember[ev.target.value]){
+		if (document.getElementById("FunccheckBox" + (ev.target.value).toString()+"_"+index.toString()) !== null && document.getElementById("FunccheckBox" + (ev.target.value).toString()+"_"+index.toString()).checked) Xen2KHandle.classFunction[ev.target.value].splice(index,1);
+	}
+	document.getElementById("ide_class").innerHTML = "변수 수정<input id=\"varEdit\" name=\"ide_VarEdit\" onchange=\"EditMemberVar(event)\">";
+	document.getElementById("ide_class").innerHTML += "<button onclick=\"createClass(event)\">새 클래스 만들기</button>"
+	for (var i = 0 ; i < ev.target.value+1; i++){
+		addClassToClassExplorer(i+1);
+	}		
+}
+
 function classvar_dbclick_handler(ev) {
-	dataArray = [ev.target.parentNode.parentNode.parentNode.value, ev.target.parentNode.value, ev.target.innerHTML];
+	dataArray = [ev.target.parentNode.parentNode.parentNode.parentNode.value, ev.target.parentNode.parentNode.value, ev.target.innerHTML];
 	var elementMemVarEdit = document.getElementById("ide_class").querySelector("input");
 	elementMemVarEdit.value = dataArray[2];
 }
 
 function classFunc_dbclick_handler(ev) {
 	bareNodeList = Xen2KHandle.BuildCanvasBoxTree(ev.target.value);
-	funcArray = [ev.target.parentNode.parentNode.parentNode.value, ev.target.parentNode.value, ev.target.value];
+	funcArray = [ev.target.parentNode.parentNode.parentNode.parentNode.value, ev.target.parentNode.parentNode.value, ev.target.value];
 	constructorLoaded = false;
 }
 
 function EditMemberVar (ev) {
-	document.getElementsByClassName("membervarTable"+ dataArray[1].toString())[dataArray[0]].innerText = ev.target.value;
 	Xen2KHandle.classmember[dataArray[0]][dataArray[1]] = ev.target.value;
+	document.getElementById("ide_class").innerHTML = "변수 수정<input id=\"varEdit\" name=\"ide_VarEdit\" onchange=\"EditMemberVar(event)\">";
+	document.getElementById("ide_class").innerHTML += "<button onclick=\"createClass(event)\">새 클래스 만들기</button>"
+	for (var i = 0 ; i<Xen2KHandle.construction.length; i++){
+		addClassToClassExplorer(i+1);
+	}
 }
 
 function renderCanvas(){
@@ -1251,7 +1351,8 @@ document.getElementById("ide_main").appendChild(consolepage);
 
 var classpage = document.createElement('div');
 classpage.id = "ide_class";
-classpage.innerHTML = "변수 수정<input name=\"ide_VarEdit\" onchange=\"EditMemberVar(event)\">";
+classpage.innerHTML = "변수 수정<input id=\"varEdit\" name=\"ide_VarEdit\" onchange=\"EditMemberVar(event)\">";
+classpage.innerHTML += "<button onclick=\"createClass(event)\">새 클래스 만들기</button>"
 document.getElementById("mainplate").appendChild(classpage);
 
 var NodeArray = [];
@@ -1282,21 +1383,7 @@ for (var node of NodeArray) {
 
 
 window.addEventListener('DOMContentLoaded', () => {
-	if (parseInt(window.localStorage.getItem("X2Kcount")) > 0 ){
-		Xen2KHandle.classFunction = new Array(parseInt(window.localStorage.getItem("X2Kcount")));
-		for (var i = 0; i < parseInt(window.localStorage.getItem("X2Kcount"));i++){
-			Xen2KHandle.construction.push(window.localStorage.getItem("constructor"+i.toString()).split(","));
-			if (window.localStorage.getItem("memvar"+i.toString()) !== null) Xen2KHandle.classmember.push(window.localStorage.getItem("memvar"+i.toString()).split(","));
-			Xen2KHandle.classFunction[i]= new Array(parseInt(window.localStorage.getItem("X2KClassFuncCount"+ i.toString())));
-			for (var j =0; j < parseInt(window.localStorage.getItem("X2KClassFuncCount"+ i.toString())); j++) {
-				if (window.localStorage.getItem("memfunc"+i.toString()+"_"+j.toString()) !== null) {
-					var tempArray = window.localStorage.getItem("memfunc"+i.toString()+"_"+j.toString()).split(",");
-					Xen2KHandle.classFunction[i][j] =[j, tempArray.slice(1, tempArray.length)];
-				}
-			}
-			AddClassToClassExplorer(i+1);
-		}
-	}
+	loadhandler();
 	
 	// Get the element by id
 	var element1 = document.getElementsByClassName("nodes");
