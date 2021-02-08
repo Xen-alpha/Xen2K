@@ -610,6 +610,7 @@ function onChangeFile(event) {
 	var reader = new FileReader();
 	reader.onload = function(e) {
 	  fileText = e.target.result;
+	  bareNodeList = [];
 	  Xen2KHandle.read(fileText);
 	};
 	reader.readAsText(file);
@@ -886,7 +887,7 @@ function loadhandler() {
 }
 
 function savehandler(e) {
-	reflectToFunc();
+	//reflectToFunc();
 	localStorage = window.localStorage;
 	localStorage.setItem("X2Kcount", Xen2KHandle.construction.length);
 	for (var index = 0; index < Xen2KHandle.construction.length; index++){
@@ -1061,7 +1062,7 @@ function reflectToFunc() {
 		recursiveScriptBuilder(index1);
 	}
 	if (constructorLoaded){
-		Xen2KHandle.construction[constructorArray[2]] = resultArray;
+		Xen2KHandle.construction[constructorindex] = resultArray;
 	} else {
 		Xen2KHandle.classFunction[funcArray[0]][funcArray[2]]= resultArray;
 	}
@@ -1141,11 +1142,13 @@ function addClassToClassExplorer (classindex) { // parameter: index of Class
 	memberVarModifyButtons.style.display = "table-cell";
 	var memVarAdd = document.createElement("button");
 	memVarAdd.onclick = createMemVar;
+	memVarAdd.value = classindex;
 	memVarAdd.innerText = "변수 생성";
 	memberVarModifyButtons.appendChild(memVarAdd);
 	var memVarDel = document.createElement("button");
 	memVarDel.onclick = deleteMemVar;
 	memVarDel.innerText = "변수 제거";
+	memVarDel.value = classindex;
 	memberVarModifyButtons.appendChild(memVarDel);
 	memberVarModifyButtonGroup.appendChild(memberVarModifyButtons);
 	memberVarRowgroup.appendChild(memberVarModifyButtonGroup);
@@ -1196,10 +1199,12 @@ function addClassToClassExplorer (classindex) { // parameter: index of Class
 	var memFuncAdd = document.createElement("button");
 	memFuncAdd.onclick = createMemFunc;
 	memFuncAdd.innerText = "함수 생성";
+	memFuncAdd.value = classindex;
 	memberFuncModifyButtons.appendChild(memFuncAdd);
 	var memFuncDel = document.createElement("button");
 	memFuncDel.onclick = deleteMemFunc;
 	memFuncDel.innerText = "함수 제거";
+	memFuncDel.value = classindex;
 	memberFuncModifyButtons.appendChild(memFuncDel);
 	memberFuncModifyButtonGroup.appendChild(memberFuncModifyButtons);
 	memberFuncRowgroup.appendChild(memberFuncModifyButtonGroup);
@@ -1211,27 +1216,28 @@ var constructorLoaded = false;
 
 function loadConstructor(ev) {
 	bareNodeList = Xen2KHandle.BuildCanvasBoxTree(Xen2KHandle.construction[parseInt(ev.target.getAttribute("value"))]);
+	constructorindex = parseInt(ev.target.getAttribute("value"));
 	constructorLoaded = true;
 }
 
 function createMemVar(ev) {
-	Xen2KHandle.classmember[dataArray[0]].push("새 변수");
+	Xen2KHandle.classmember[ev.target.getAttribute("value")].push("새 변수");
 
 	refreshClassExplorer();
 }
 function deleteMemVar(ev) {
-	Xen2KHandle.classmember[dataArray[0]].pop();
+	Xen2KHandle.classmember[ev.target.getAttribute("value")].pop();
 
 	refreshClassExplorer();
 }
 function createMemFunc(ev) {
-	Xen2KHandle.classFunction[funcArray[0]].push([""]);
+	Xen2KHandle.classFunction[ev.target.getAttribute("value")].push([""]);
 
 	refreshClassExplorer();
 }
 function deleteMemFunc(ev) {
 	bareNodeList = [];
-	Xen2KHandle.classFunction[funcArray[0]].pop();
+	Xen2KHandle.classFunction[ev.target.getAttribute("value")].pop();
 	refreshClassExplorer();	
 }
 
