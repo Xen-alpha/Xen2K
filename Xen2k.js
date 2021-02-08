@@ -1079,9 +1079,16 @@ function createClass() {
 
 function deleteClass(ev)
 {
-	Xen2KHandle.construction.splice(ev.target.value, 1);
-	Xen2KHandle.classmember.splice(ev.target.value, 1);
-	Xen2KHandle.classFunction.splice(ev.target.value, 1);
+	Xen2KHandle.construction.splice(ev.target.getAttribute("value"), 1);
+	Xen2KHandle.classmember.splice(ev.target.getAttribute("value"), 1);
+	Xen2KHandle.classFunction.splice(ev.target.getAttribute("value"), 1);
+	refreshClassExplorer();
+}
+function copyClass(ev)
+{
+	Xen2KHandle.construction.push(Xen2KHandle.construction[ev.target.getAttribute("value")]);
+	Xen2KHandle.classmember.push(Xen2KHandle.classmember[ev.target.getAttribute("value")]);
+	Xen2KHandle.classFunction.push(Xen2KHandle.classFunction[ev.target.getAttribute("value")]);
 	refreshClassExplorer();
 }
 
@@ -1100,7 +1107,7 @@ function addClassToClassExplorer (classindex) { // parameter: index of Class
 	background.id="classbackground"+(classindex).toString();
 	background.style="width:396px;height:100px;display:table;border:2px solid black;border-bottom-color:transparent";
 	background.value= classindex;
-	background.innerHTML = "<div style=\"display:table-header-group;border:2px solid;\"><div style=\"display:table-cell\">class "+(classindex).toString() + "</div><div style=\"display:table-cell\">멤버 변수</div></div>";
+	background.innerHTML = "<div style=\"display:table-header-group;border:2px solid;\"><div style=\"display:table-cell\">class "+(classindex).toString() + "<button onclick=\"copyClass(event)\" value="+(classindex).toString()+">복제</button><button onclick=\"deleteClass(event)\" value="+(classindex).toString()+">X</button></div><div style=\"display:table-cell\">멤버 변수</div></div>";
 	document.getElementById("ide_class").appendChild(background);
 	
 	var memberVarRowgroup = document.createElement("div");
