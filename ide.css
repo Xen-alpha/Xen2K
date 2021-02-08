@@ -36,6 +36,5 @@
 }
 #functioncanvas{
 	background-color:yellow;
-	overflow-x:scroll;
 	height: 40px;
 }
