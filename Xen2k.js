@@ -888,6 +888,7 @@ function savehandler(e) {
 	for (var index = 0; index < Xen2KHandle.construction.length; index++){
 		localStorage.setItem("constructor"+index.toString(), Xen2KHandle.construction[index]);
 		localStorage.setItem("memvar"+index.toString(), Xen2KHandle.classmember[index]);
+		localStorage.setItem("X2KClassFuncCount"+ index.toString(), Xen2KHandle.classFunction[index].length);
 		for (var index2 in Xen2KHandle.classFunction[index]) {
 			localStorage.setItem("memfunc"+index.toString()+"_"+index2.toString(), Xen2KHandle.classFunction[index][index2]);
 		}
@@ -933,7 +934,6 @@ function exporthandler(e) {
 			if (targetnode.nodename === '*' || targetnode.nodename === '_') {
 				resultscript += targetnode.numstr;
 				return;
-			} else if (targetnode) { 
 			} else {
 				//function found
 				resultscript+=itoa(parseInt(targetnode.numstr));
@@ -954,10 +954,10 @@ function exporthandler(e) {
 		for (var memberFunc of Xen2KHandle.classFunction[index0]){
 			resultscript += "\n! ";
 			rootNodeList =  [];
-			for (var index1 of Xen2KHandle.BuildCanvasBoxTree(memberFunc)) {
-				if (index1.parentNode === null) {
-					rootNodeList.push(index1); //type: CanvasBox
-				}
+			var TempCodeTree = Xen2KHandle.BuildCanvasBoxTree(memberFunc);
+			for (var node of TempCodeTree)
+				if (node.parentNode === null) {
+					rootNodeList.push(node); //type: CanvasBox
 			}
 			if (rootNodeList === []) continue;
 			//Sorting
@@ -972,10 +972,10 @@ function exporthandler(e) {
 							rootNodeList[index2] = rootNodeList[index2+1];
 							rootNodeList[index2+1] = temp;
 						}
-
 					}
 				}
 			}
+			console.log(rootNodeList);
 			for (var index2 of rootNodeList){
 				recursiveScriptBuilder(index2);
 			}
