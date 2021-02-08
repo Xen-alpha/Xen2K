@@ -983,8 +983,8 @@ function exporthandler(e) {
 			for (var index2 of rootNodeList){
 				recursiveScriptBuilder(index2);
 			}
-			resultscript += "\n&\n";
 		}
+		resultscript += "\n&\n";
 	}
 	
 	// download the result
