@@ -246,19 +246,19 @@ function Xen2K() {
 		this.construction = [];
 		this.classmember = [];
 		this.classFunction = [];
-		var classes = data.split("\n&\n");
+		var classes = data.split("&");
 		classes.pop();
 		for(var classtext of classes) {
 			//member function
-			var tempdata = classtext.split("\n! ");
+			var tempdata = classtext.split("!");
 			var tempArray2 = new Array(0);
 			for (var i = 1; i< tempdata.length; i++) {
-				var memberFuncTokens = this.tokenize(tempdata[i]);
+				var memberFuncTokens = this.tokenize(tempdata[i].trim());
 				tempArray2.push(memberFuncTokens);
 			}
 			this.classFunction.push(tempArray2);
 			// next parsing: constructor
-			var tempdata2 = tempdata[0].split("\n#");
+			var tempdata2 = tempdata[0].split("#");
 			var constructdata = tempdata2[1];
 			constructdata = this.tokenize(constructdata);
 			this.construction.push(constructdata); // add to constructor array
