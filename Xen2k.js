@@ -680,18 +680,10 @@ function canvas_mousedown_handler(e) {
 			//bootstrap the clicked node
 			targetNode.SetPosition(e.offsetX, e.offsetY);
 			targetNode.dragging = true;
-			if (bareNodeList.indexOf(targetNode) < bareNodeList.length-1) {
-				bareNodeList.push(targetNode);
-				bareNodeList.splice(bareNodeList.indexOf(targetNode),1);
-			}
 			deleteType = 0;
 		} else if (targetNode !== null && targetNode.constructor === CanvasComment) {
 			targetNode.SetPosition(e.offsetX, e.offsetY);
 			targetNode.dragging = true;
-			if (commentplateArray.indexOf(targetNode) < commentplateArray.length-1) {
-				commentplateArray.push(targetNode);
-				commentplateArray.splice(commentplateArray.indexOf(targetNode),1);
-			}
 			deleteType = 1;
 		} else if (DropMenuHandle.activated && e.offsetX >= DropMenuHandle.position[0] && e.offsetX < DropMenuHandle.position[0] + DropMenuHandle.size[0] && e.offsetY >= DropMenuHandle.position[1] && e.offsetY < DropMenuHandle.position[1] + DropMenuHandle.size[1] ) {
 			// click element inside dropdown menu
