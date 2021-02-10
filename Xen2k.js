@@ -639,6 +639,7 @@ var isDragging = false;
 var rightbuttonDragging = false;
 var rightbuttonDraggingTimer = null;
 var commentplateArray = [];
+var focusedIndex = -1;
 var deleteType = 0;
 function canvas_mousedown_handler(e) {
 	e.preventDefault();
@@ -680,10 +681,12 @@ function canvas_mousedown_handler(e) {
 			//bootstrap the clicked node
 			targetNode.SetPosition(e.offsetX, e.offsetY);
 			targetNode.dragging = true;
+			focusedIndex = bareNodeList.indexOf(targetNode);
 			deleteType = 0;
 		} else if (targetNode !== null && targetNode.constructor === CanvasComment) {
 			targetNode.SetPosition(e.offsetX, e.offsetY);
 			targetNode.dragging = true;
+			focusedIndex = commentplateArray.indexOf(targetNode);
 			deleteType = 1;
 		} else if (DropMenuHandle.activated && e.offsetX >= DropMenuHandle.position[0] && e.offsetX < DropMenuHandle.position[0] + DropMenuHandle.size[0] && e.offsetY >= DropMenuHandle.position[1] && e.offsetY < DropMenuHandle.position[1] + DropMenuHandle.size[1] ) {
 			// click element inside dropdown menu
@@ -711,10 +714,10 @@ function canvas_mousedown_handler(e) {
 	}
 }
 function canvas_mousemove_handler(e){
-	if (bareNodeList.length > 0 && bareNodeList[bareNodeList.length-1].dragging) {
-		bareNodeList[bareNodeList.length-1].SetPosition(e.offsetX, e.offsetY);
+	if (bareNodeList.length > 0 && bareNodeList[focusedIndex].dragging) {
+		bareNodeList[focusedIndex].SetPosition(e.offsetX, e.offsetY);
 	} else if (commentplateArray.length > 0 && commentplateArray[commentplateArray.length-1].dragging) {
-		commentplateArray[commentplateArray.length-1].SetPosition(e.offsetX, e.offsetY);;
+		commentplateArray[focusedIndex].SetPosition(e.offsetX, e.offsetY);;
 	} else if (isDragging){
 		for (var node of commentplateArray) {
 			node.position[0] += e.movementX;
@@ -730,14 +733,15 @@ function canvas_mousemove_handler(e){
 	}
 		
 	if (rightbuttonDragging){
-		commentplateArray[commentplateArray.length-1].size = [e.offsetX - commentplateArray[commentplateArray.length-1].position[0], e.offsetY - commentplateArray[commentplateArray.length-1].position[1]];
+		commentplateArray[focusedIndex].size = [e.offsetX - commentplateArray[focusedIndex].position[0], e.offsetY - commentplateArray[focusedIndex].position[1]];
 	}
 }
 function canvas_mouseup_handler(e){
 	e.preventDefault();
 	if (e.button === 0) {
-		if (bareNodeList.length >0) bareNodeList[bareNodeList.length-1].dragging = false;
-		if (commentplateArray.length > 0) commentplateArray[commentplateArray.length -1].dragging = false;
+		if (bareNodeList.length >0) bareNodeList[focusedIndex].dragging = false;
+		if (commentplateArray.length > 0) commentplateArray[focusedIndex].dragging = false;
+		focusedIndex = -1;
 		var targetNode = null;
 		if (BranchPoint !== 0){
 			for (var node of bareNodeList){
