@@ -251,7 +251,7 @@ function Xen2K() {
 		for(var classtext of classes) {
 			//member function
 			var tempdata = classtext.split("!");
-			var tempArray2 = new Array(0);
+			var tempArray2 = new Array(1);
 			for (var i = 1; i< tempdata.length; i++) {
 				var memberFuncTokens = this.tokenize(tempdata[i].trim());
 				tempArray2.push(memberFuncTokens);
@@ -267,7 +267,6 @@ function Xen2K() {
 			tempArray.pop();
 			this.classmember.push(tempArray);
 		}
-		savehandler();
 		refreshClassExplorer();		
         return;
 	};
@@ -335,7 +334,7 @@ function Xen2K() {
 					if (indentcount === 0)currentNode = new CanvasBox(FunctionInfos.get(elem),elem);
 					instructioncalled = true;
 					currentNode.nodename = FunctionInfos.get(elem);
-					currentNode.numstr = elem;
+					currentNode.numstr = itoa(parseInt(elem));
 					currentNode.position[0] = 25*loopcount;
 			}
 			if (instructioncalled === false && indentcount === 0) {
@@ -612,6 +611,7 @@ function onChangeFile(event) {
 	  fileText = e.target.result;
 	  bareNodeList = [];
 	  Xen2KHandle.read(fileText);
+	  PostLoadProject();
 	};
 	reader.readAsText(file);
 }
@@ -631,7 +631,8 @@ function drop_handler(ev) {
 	const data = ev.dataTransfer.getData("text/plain");
 	AddNodeToCanvas([ev.offsetX, ev.offsetY], data);
 }
-
+var currentCanvasClassIndex = -1;
+var currentCanvasFuncIndex = -1;
 var BranchPoint = 0;
 var DrawingLine = [[0,0], [0,0]];
 var BranchParent = null;
@@ -650,7 +651,7 @@ function canvas_mousedown_handler(e) {
 				targetNode = node;
 			}
 		}
-		for (var node of bareNodeList){
+		for (var node of bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex]){
 			if (e.offsetX >= node.position[0] && e.offsetX <= node.position[0] + node.size[0] && e.offsetY >= node.position[1] && e.offsetY <= node.position[1]+node.size[1] - 10) {
 				targetNode = node;
 			}
@@ -681,7 +682,7 @@ function canvas_mousedown_handler(e) {
 			//bootstrap the clicked node
 			targetNode.SetPosition(e.offsetX, e.offsetY);
 			targetNode.dragging = true;
-			focusedIndex = bareNodeList.indexOf(targetNode);
+			focusedIndex = bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex].indexOf(targetNode);
 			deleteType = 0;
 		} else if (targetNode !== null && targetNode.constructor === CanvasComment) {
 			targetNode.SetPosition(e.offsetX, e.offsetY);
@@ -691,8 +692,8 @@ function canvas_mousedown_handler(e) {
 		} else if (DropMenuHandle.activated && e.offsetX >= DropMenuHandle.position[0] && e.offsetX < DropMenuHandle.position[0] + DropMenuHandle.size[0] && e.offsetY >= DropMenuHandle.position[1] && e.offsetY < DropMenuHandle.position[1] + DropMenuHandle.size[1] ) {
 			// click element inside dropdown menu
 			var clickpointY = Math.floor((e.offsetY- DropMenuHandle.position[1] ) / 16);
-			bareNodeList.push(new CanvasBox(DropMenuHandle.MenuList[clickpointY + DropMenuHandle.sightpoint][1] ,DropMenuHandle.MenuList[clickpointY][0]));
-			bareNodeList[bareNodeList.length-1].SetPosition(e.offsetX, e.offsetY);
+			bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex].push(new CanvasBox(DropMenuHandle.MenuList[clickpointY + DropMenuHandle.sightpoint][1] ,DropMenuHandle.MenuList[clickpointY][0]));
+			bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][bareNodeList.length-1].SetPosition(e.offsetX, e.offsetY);
 		}
 		else {
 			// moving background
@@ -714,16 +715,24 @@ function canvas_mousedown_handler(e) {
 	}
 }
 function canvas_mousemove_handler(e){
-	if (bareNodeList.length > 0 && bareNodeList[focusedIndex].dragging) {
-		bareNodeList[focusedIndex].SetPosition(e.offsetX, e.offsetY);
-	} else if (commentplateArray.length > 0 && commentplateArray[commentplateArray.length-1].dragging) {
-		commentplateArray[focusedIndex].SetPosition(e.offsetX, e.offsetY);;
-	} else if (isDragging){
+	if (focusedIndex>=0){
+		if (bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex].length > 0 && bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].dragging) {
+			bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].SetPosition(e.offsetX, e.offsetY);
+		} else if (commentplateArray.length > 0 && commentplateArray[commentplateArray.length-1].dragging) {
+			commentplateArray[focusedIndex].SetPosition(e.offsetX, e.offsetY);;
+		}
+	
+	
+		if (rightbuttonDragging){
+			commentplateArray[focusedIndex].size = [e.offsetX - commentplateArray[focusedIndex].position[0], e.offsetY - commentplateArray[focusedIndex].position[1]];
+		}
+	}
+	if (isDragging){
 		for (var node of commentplateArray) {
 			node.position[0] += e.movementX;
 			node.position[1] += e.movementY;
 		}
-		for (var node of bareNodeList) {
+		for (var node of bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex]) {
 			node.position[0] += e.movementX;
 			node.position[1] += e.movementY;
 		}
@@ -731,22 +740,19 @@ function canvas_mousemove_handler(e){
 	if (BranchPoint !== 0) {
 		DrawingLine[1] = [e.offsetX, e.offsetY];
 	}
-		
-	if (rightbuttonDragging){
-		commentplateArray[focusedIndex].size = [e.offsetX - commentplateArray[focusedIndex].position[0], e.offsetY - commentplateArray[focusedIndex].position[1]];
-	}
 }
 function canvas_mouseup_handler(e){
 	e.preventDefault();
 	if (e.button === 0) {
-		if (bareNodeList.length >0) bareNodeList[focusedIndex].dragging = false;
-		if (commentplateArray.length > 0) commentplateArray[focusedIndex].dragging = false;
-		focusedIndex = -1;
+		if (focusedIndex >= 0){
+			if (bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex].length >0) bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].dragging = false;
+			if (commentplateArray.length > 0) commentplateArray[focusedIndex].dragging = false;
+		}
 		var targetNode = null;
 		if (BranchPoint !== 0){
-			for (var node of bareNodeList){
+			for (var node of bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex]){
 				if ( e.offsetX >= node.position[0] && e.offsetX <= node.position[0] + node.size[0] && e.offsetY >= node.position[1] && e.offsetY <= node.position[1]+node.size[1] - 10){
-					var parentindex = bareNodeList.indexOf(BranchParent);
+					var parentindex = bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex].indexOf(BranchParent);
 					if (BranchParent === node) break; // no self connect
 					// No linking to root node
 					var cancelLink = false;
@@ -758,19 +764,19 @@ function canvas_mouseup_handler(e){
 					if (node.parentNode !== null) break;
 					// linking branch
 					if (BranchPoint === 1) {
-						if (bareNodeList[parentindex].leftBranch === null){
-							bareNodeList[parentindex].leftBranch = node;
+						if (bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][parentindex].leftBranch === null){
+							bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][parentindex].leftBranch = node;
 						} else {
-							bareNodeList[parentindex].leftBranch.parentNode = null;
-							bareNodeList[parentindex].leftBranch = node;
+							bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][parentindex].leftBranch.parentNode = null;
+							bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][parentindex].leftBranch = node;
 						}
 					}
 					else {
-						if (bareNodeList[parentindex].rightBranch === null){
-							bareNodeList[parentindex].rightBranch = node;
+						if (bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][parentindex].rightBranch === null){
+							bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][parentindex].rightBranch = node;
 						} else {
-							bareNodeList[parentindex].rightBranch.parentNode = null;
-							bareNodeList[parentindex].rightBranch = node;
+							bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][parentindex].rightBranch.parentNode = null;
+							bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][parentindex].rightBranch = node;
 						}
 					}
 					node.parentNode = bareNodeList[parentindex];
@@ -838,24 +844,24 @@ function canvas_keydown_handler(e){
 		else if (e.key.length === 1)typingComment.nodename = typingComment.nodename.concat(e.key);
 	}
 	else {
-		if (e.code === 'Delete'){
-			if ( deleteType === 0 && bareNodeList.length > 0){ // delete node
-				if (bareNodeList[bareNodeList.length-1].leftBranch !== null){
-					bareNodeList[bareNodeList.length-1].leftBranch.parentNode = null;
+		if (e.key === "Delete" && focusedIndex !== -1){
+			if ( deleteType === 0 && bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex].length > 0){ // delete node
+				if (bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].leftBranch !== null){
+					bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].leftBranch.parentNode = null;
 				}
-				if (bareNodeList[bareNodeList.length-1].rightBranch !== null){
-					bareNodeList[bareNodeList.length-1].rightBranch.parentNode = null;
+				if (bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].rightBranch !== null){
+					bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].rightBranch.parentNode = null;
 				}
-				if (bareNodeList[bareNodeList.length-1].parentNode !== null){
-					if (bareNodeList[bareNodeList.length-1].parentNode.leftBranch === bareNodeList[bareNodeList.length-1]){
-						bareNodeList[bareNodeList.length-1].parentNode.leftBranch = null;
+				if (bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].parentNode !== null){
+					if (bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].parentNode.leftBranch === bareNodeList[focusedIndex]){
+						bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].parentNode.leftBranch = null;
 					}
-					if (bareNodeList[bareNodeList.length-1].parentNode.rightBranch === bareNodeList[bareNodeList.length-1]){
-						bareNodeList[bareNodeList.length-1].parentNode.rightBranch = null;
+					if (bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].parentNode.rightBranch === bareNodeList[focusedIndex]){
+						bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].parentNode.rightBranch = null;
 					}
 				}
-				bareNodeList.pop();
-				reflectToFunc();
+				bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex].splice(focusedIndex, 1);
+				focusedIndex = -1;
 			} else if (deleteType === 1 && commentplateArray.length > 0){
 				commentplateArray.pop();
 			}
@@ -863,41 +869,87 @@ function canvas_keydown_handler(e){
 	}
 }
 
-function loadhandler() {
-	if (parseInt(window.localStorage.getItem("X2Kcount")) > 0 ){
-		Xen2KHandle.construction = new Array(parseInt(window.localStorage.getItem("X2Kcount")));
-		Xen2KHandle.classmember = new Array(parseInt(window.localStorage.getItem("X2Kcount")));
-		Xen2KHandle.classFunction = new Array(parseInt(window.localStorage.getItem("X2Kcount")));
-		for (var i = 0; i < parseInt(window.localStorage.getItem("X2Kcount"));i++){
-			Xen2KHandle.construction[i] = window.localStorage.getItem("constructor"+i.toString()).split(","); // constructor
-			if (window.localStorage.getItem("memvar"+i.toString()) !== null) Xen2KHandle.classmember[i] = (window.localStorage.getItem("memvar"+i.toString()).split(","));// member variable
-			//memberFunc
-			Xen2KHandle.classFunction[i]= new Array(parseInt(window.localStorage.getItem("X2KClassFuncCount"+ i.toString())));
-			for (var j =0; j < parseInt(window.localStorage.getItem("X2KClassFuncCount"+ i.toString())); j++) {
-				var tempArray = window.localStorage.getItem("memfunc"+i.toString()+"_"+j.toString()).split(",");
-				Xen2KHandle.classFunction[i][j] =tempArray;
-			}
-		}
-	}
-	refreshClassExplorer();
-}
-
-function savehandler(e) {
-	//reflectToFunc();
+function PostLoadProject () {
 	localStorage = window.localStorage;
 	localStorage.setItem("X2Kcount", Xen2KHandle.construction.length);
+	bareNodeList = new Array(Xen2KHandle.construction.length);
 	for (var index = 0; index < Xen2KHandle.construction.length; index++){
 		localStorage.setItem("constructor"+index.toString(), Xen2KHandle.construction[index]);
 		localStorage.setItem("memvar"+index.toString(), Xen2KHandle.classmember[index]);
 		localStorage.setItem("X2KClassFuncCount"+ index.toString(), Xen2KHandle.classFunction[index].length);
+		bareNodeList[index] = new Array(Xen2KHandle.classFunction[index].length);
+		bareNodeList[index][0] = Xen2KHandle.BuildCanvasBoxTree(Xen2KHandle.construction[index]);
 		for (var index2 in Xen2KHandle.classFunction[index]) {
-			localStorage.setItem("memfunc"+index.toString()+"_"+index2.toString(), Xen2KHandle.classFunction[index][index2]);
+			if (index2 === 0) continue;
+			localStorage.setItem("memfunc"+index.toString()+"_"+(index2).toString(), Xen2KHandle.classFunction[index][index2]);
+			bareNodeList[index][index2] = Xen2KHandle.BuildCanvasBoxTree(Xen2KHandle.classFunction[index][index2]);
+		}
+	}
+	// now push data to bareNodeList
+}
+
+function StringifyBareNodeList(CanvasBoxNode){
+	var result = "";
+	var rootNodeList = [];
+	for (var elem in CanvasBoxNode){
+		if (CanvasBoxNode[elem].parentNode === null) {
+				rootNodeList.push(CanvasBoxNode[elem]); //type: CanvasBox
+			}
+	}
+	if (rootNodeList.length>= 2){
+		var sorted = false;
+		while (!sorted) {
+			sorted = true;
+			for (var index1 = 0; index1 < rootNodeList.length -1 ; index1++) {
+				if (rootNodeList[index1].position[0] > rootNodeList[index1+1].position[0]) {
+					sorted = false;
+					var temp = rootNodeList[index1];
+					rootNodeList[index1] = rootNodeList[index1+1];
+					rootNodeList[index1+1] = temp;
+				}
+
+			}
+		}
+	}
+	
+	function recursiveScriptBuilder(targetnode){ // targetnode == a node of rootNodeList(CanvasBox)
+		if (targetnode.nodename === '*' || targetnode.nodename === '_') {
+			result += targetnode.numstr;
+			return;
+		} else {
+			//function found
+			result+=targetnode.numstr;
+			result += "=";
+			recursiveScriptBuilder(targetnode.leftBranch);
+			result += "+";
+			recursiveScriptBuilder(targetnode.rightBranch);
+			result+= ".";
+			return;
+		}
+	}
+	
+	for (var index1 of rootNodeList){
+		recursiveScriptBuilder(index1);
+	}
+	return result;
+}
+
+function savehandler(e) {
+	localStorage = window.localStorage;
+	localStorage.setItem("X2Kcount", Xen2KHandle.construction.length);
+	for (var index = 0; index < Xen2KHandle.construction.length; index++){
+		localStorage.setItem("constructor"+index.toString(), StringifyBareNodeList(bareNodeList[index][0]));
+		localStorage.setItem("memvar"+index.toString(), Xen2KHandle.classmember[index]);
+		localStorage.setItem("X2KClassFuncCount"+ index.toString(), Xen2KHandle.classFunction[index].length);
+		for (var index2 in Xen2KHandle.classFunction[index]) {
+			if (index2 === 0) continue;
+			localStorage.setItem("memfunc"+index.toString()+"_"+(index2).toString(), StringifyBareNodeList(bareNodeList[index][index2]));
 		}
 	}
 }
 
-var rootNodeList =  [];
 function exporthandler(e) {
+	var rootNodeList =  [];
 	// member saving
 	var resultscript = "";
 	for (var index0 in Xen2KHandle.construction) {
@@ -906,81 +958,13 @@ function exporthandler(e) {
 		}
 		resultscript += "\n#";
 		//constructor saving
-		rootNodeList =  [];
-		for (var nodeElem of Xen2KHandle.BuildCanvasBoxTree(Xen2KHandle.construction[index0])){
-			if (nodeElem.parentNode === null) {
-				rootNodeList.push(nodeElem); //type: CanvasBox
-			}
-		}
-		if (rootNodeList === []) continue;
-		//Sorting
-		if (rootNodeList.length>= 2){
-			var sorted = false;
-			while (!sorted) {
-				sorted = true;
-				for (var index1 = 0; index1 < rootNodeList.length -1 ; index1++) {
-					if (rootNodeList[index1].position[0] > rootNodeList[index1+1].position[0]) {
-						sorted = false;
-						var temp = rootNodeList[index1];
-						rootNodeList[index1] = rootNodeList[index1+1];
-						rootNodeList[index1+1] = temp;
-					}
 
-				}
-			}
-		}
-		
-		function recursiveScriptBuilder(targetnode){ // targetnode == a node of rootNodeList(CanvasBox)
-			if (targetnode.nodename === '*' || targetnode.nodename === '_') {
-				resultscript += targetnode.numstr;
-				return;
-			} else {
-				//function found
-				resultscript+=itoa(parseInt(targetnode.numstr));
-				resultscript += "=";
-				recursiveScriptBuilder(targetnode.leftBranch);
-				resultscript += "+";
-				recursiveScriptBuilder(targetnode.rightBranch);
-				resultscript+= ".";
-				return;
-			}
-		}
-		
-		for (var index1 of rootNodeList){
-			recursiveScriptBuilder(index1);
-		}
-		// member function
-		if (Xen2KHandle.classFunction[index0] === []) continue;
-		for (var memberFunc of Xen2KHandle.classFunction[index0]){
+		resultscript += window.localStorage.getItem("constructor"+index0.toString()); // constructor;
+		for (var index1 in Xen2KHandle.classFunction[index0]){
 			resultscript += "\n! ";
-			rootNodeList =  [];
-			var TempCodeTree = Xen2KHandle.BuildCanvasBoxTree(memberFunc);
-			for (var node of TempCodeTree)
-				if (node.parentNode === null) {
-					rootNodeList.push(node); //type: CanvasBox
-			}
-			if (rootNodeList === []) continue;
-			//Sorting
-			if (rootNodeList.length>= 2){
-				var sorted = false;
-				while (!sorted) {
-					sorted = true;
-					for (var index2 = 0; index2 < rootNodeList.length -1 ; index2++) {
-						if (rootNodeList[index2].position[0] > rootNodeList[index2+1].position[0]) {
-							sorted = false;
-							var temp = rootNodeList[index2];
-							rootNodeList[index2] = rootNodeList[index2+1];
-							rootNodeList[index2+1] = temp;
-						}
-					}
-				}
-			}
-			console.log(rootNodeList);
-			for (var index2 of rootNodeList){
-				recursiveScriptBuilder(index2);
-			}
+			resultscript += window.localStorage.getItem("memfunc"+index0.toString()+"_"+index1.toString());
 		}
-		resultscript += "\n&\n";
+		resultscript += "\n&";
 	}
 	
 	// download the result
@@ -1005,25 +989,23 @@ function AddNodeToCanvas(pos, NodeName) {
 			var sourceNode = new CanvasBox("","");
 			Object.assign(sourceNode, NodeArray[node]);
 			sourceNode.SetPosition(pos[0], pos[1]);
-			bareNodeList.push(sourceNode);
-			reflectToFunc();
+			bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex].push(sourceNode);
+
 			break;
 		}
 	}
 }
 
-function reflectToFunc() {
+function reflectToFunc(NodeList) {
 	var resultArray = [];
 	var sourceArray = [];
 	var rootNodeList =  [];
-	if (bareNodeList.length === 0 )return;
-	for (var nodeElem of bareNodeList){
+	if (NodeList === null || NodeList.length === 0 ) return [];
+	for (var nodeElem of NodeList){
 		if (nodeElem.parentNode === null) {
 			rootNodeList.push(nodeElem); //type: CanvasBox
 		}
 	}
-	//if (rootNodeList === []) return;
-	//Sorting
 
 	var sorted = false;
 	while (!sorted) {
@@ -1057,11 +1039,7 @@ function reflectToFunc() {
 	for (var index1 of rootNodeList){
 		recursiveScriptBuilder(index1);
 	}
-	if (constructorLoaded){
-		Xen2KHandle.construction[constructorindex] = resultArray;
-	} else {
-		Xen2KHandle.classFunction[funcArray[0]][funcArray[2]]= resultArray;
-	}
+	return resultArray;
 }
 
 var Xen2KHandle = new Xen2K();
@@ -1164,7 +1142,7 @@ function addClassToClassExplorer (classindex) { // parameter: index of Class
 	background_sub.innerHTML = "<div style=\"display:table-header-group;border:2px solid;\"><div style=\"display:table-cell\" onclick=\"loadConstructor(event)\" value="+classindex.toString()+">생성자 열기</div><div style=\"display:table-cell\">멤버 함수</div></div>";
 	var memberFuncRowgroup = document.createElement("div");
 	memberFuncRowgroup.style.display = "table-row-group";
-	for (var index = 0 ; index < Xen2KHandle.classFunction[classindex].length; index++) {
+	for (var index = 1 ; index < Xen2KHandle.classFunction[classindex].length; index++) {
 		// member function
 		var memberRow = document.createElement("div");
 		memberRow.value = index;
@@ -1218,7 +1196,15 @@ function addClassToClassExplorer (classindex) { // parameter: index of Class
 var constructorLoaded = false;
 
 function loadConstructor(ev) {
-	bareNodeList = Xen2KHandle.BuildCanvasBoxTree(Xen2KHandle.construction[parseInt(ev.target.getAttribute("value"))]);
+	currentCanvasClassIndex = parseInt(ev.target.getAttribute("value"));
+	currentCanvasFuncIndex = 0;
+	if (bareNodeList.length <= currentCanvasClassIndex) {
+		while (bareNodeList.length <= currentCanvasClassIndex) bareNodeList.push([]);
+	}
+	if (bareNodeList[currentCanvasClassIndex].length <= currentCanvasFuncIndex) {
+		while (bareNodeList[currentCanvasClassIndex].length <= currentCanvasFuncIndex) bareNodeList[currentCanvasClassIndex].push([]);
+	}
+	bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex] = Xen2KHandle.BuildCanvasBoxTree(Xen2KHandle.construction[parseInt(ev.target.getAttribute("value"))]);
 	constructorindex = parseInt(ev.target.getAttribute("value"));
 	constructorLoaded = true;
 }
@@ -1234,12 +1220,12 @@ function deleteMemVar(ev) {
 	refreshClassExplorer();
 }
 function createMemFunc(ev) {
-	Xen2KHandle.classFunction[ev.target.getAttribute("value")].push([""]);
-
+	Xen2KHandle.classFunction[ev.target.getAttribute("value")].push([]);
+	bareNodeList[ev.target.getAttribute("value")].push([]);
 	refreshClassExplorer();
 }
 function deleteMemFunc(ev) {
-	bareNodeList = [];
+	bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex] = [];
 	Xen2KHandle.classFunction[ev.target.getAttribute("value")].pop();
 	refreshClassExplorer();	
 }
@@ -1256,7 +1242,15 @@ var funcArray = [];
 function classFunc_dbclick_handler(ev) {
 	var index1 = parseInt(ev.target.value.split(",")[0]);
 	var index2 = parseInt(ev.target.value.split(",")[1]);
-	bareNodeList = Xen2KHandle.BuildCanvasBoxTree(Xen2KHandle.classFunction[index1][index2]);
+	currentCanvasClassIndex = index1;
+	currentCanvasFuncIndex = index2+1; // including constructor -> +1 index
+	if (bareNodeList.length <= index1) {
+		while (bareNodeList.length <= index1) bareNodeList.push([]);
+	}
+	if (bareNodeList[currentCanvasClassIndex].length <= index2+1) {
+		while (bareNodeList[currentCanvasClassIndex].length <= index2+1) bareNodeList[currentCanvasClassIndex].push([]);
+	}
+	bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex] = Xen2KHandle.BuildCanvasBoxTree(Xen2KHandle.classFunction[index1][index2]);
 	constructorLoaded = false;
 	funcArray = [index1,index2];
 }
@@ -1268,11 +1262,13 @@ function EditMemberVar (ev) {
 
 function renderCanvas(){
 	document.getElementById("MainCanvas").width = document.getElementById("MainCanvas").width; // reset the canvas
-	for (var elem of commentplateArray){
-		elem.DrawNode();
-	}
-	for (var elem of bareNodeList){
-		elem.DrawNode();
+	if (currentCanvasClassIndex !== -1 || currentCanvasFuncIndex !== -1) {
+		for (var elem of commentplateArray){
+			elem.DrawNode();
+		}
+		for (var elem of bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex]){
+			elem.DrawNode();
+		}
 	}
 	if (BranchPoint !== 0){
 		var ctx = document.getElementById("MainCanvas").getContext("2d");
@@ -1415,7 +1411,6 @@ for (var node of NodeArray) {
 
 
 window.addEventListener('DOMContentLoaded', () => {
-	loadhandler();
 	
 	// Get the element by id
 	var element1 = document.getElementsByClassName("nodes");
@@ -1435,7 +1430,7 @@ window.addEventListener('DOMContentLoaded', () => {
 	element2.addEventListener("mouseup",canvas_mouseup_handler);
 	element2.addEventListener("mousemove",canvas_mousemove_handler);
 	element2.addEventListener("wheel", canvas_wheel_handler);
-	document.getElementById("mw-content-text").addEventListener("keydown", canvas_keydown_handler);
+	document.addEventListener("keydown", canvas_keydown_handler);
 	
 	requestAnimationFrame(renderCanvas);
 	
