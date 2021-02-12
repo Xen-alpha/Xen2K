@@ -139,43 +139,12 @@ function DrawableObject (a, b, type){
 	}
 }
 
-function CanvasComment (nodename){
-	this.position = [0,0];
-	this.size = [50, 50];
-	this.nodename = nodename;
-	this.dragging = false;
-	this.activated = false;
-	this.SetPosition = function(x, y) {
-		this.position = [x-50, y-25];
-	}
-	this.DrawNode = function(){
-		var ctx = document.getElementById("MainCanvas").getContext("2d");
-		ctx.beginPath();
-		ctx.rect(this.position[0], this.position[1], this.size[0], this.size[1]);
-		ctx.fillStyle = "rgba(200, 200, 240, 0.5)";
-		ctx.fill();
-		ctx.closePath();
-		if (typingComment === this) {
-			ctx.beginPath();
-			ctx.fillStyle = "rgba(240, 240, 240, 1)";
-			ctx.rect(this.position[0], this.position[1], this.size[0], 16);
-			ctx.fill();
-			ctx.closePath();
-		}
-		ctx.beginPath();
-		ctx.strokeStyle = "rgba(100, 100, 20, 1)";
-		ctx.font = "16px Arial, sans-serif";
-		ctx.textBaseline = "top";
-		ctx.strokeText(this.nodename,this.position[0], this.position[1]);
-		ctx.closePath();
-	}
-}
-
 function CanvasBox (nodename, numstr) {
 	this.position = [0,0];
 	this.size = [100, 50];
 	this.nodename = nodename;
 	this.numstr = numstr;
+	this.comment = "";
 	this.dragging = false;
 	this.leftBranch = null;
 	this.rightBranch = null;
@@ -223,6 +192,17 @@ function CanvasBox (nodename, numstr) {
 			ctx.strokeStyle = "black";
 			ctx.lineWidth = 1.0;
 			ctx.stroke();
+		}
+		if (this.comment.length >0) {
+			ctx.beginPath();
+			ctx.rect(this.position[0]+this.size[0], this.position[1], 12 , this.size[1]);
+			ctx.fillStyle = "rgba(255, 255, 255, 1)";
+			ctx.fill();
+			ctx.font = "12px Arial, sans-serif";
+			ctx.textAlign = "left";
+			ctx.textBaseline = "alphabetic";
+			ctx.strokeText(this.comment,this.position[0] +this.size[0], this.position[1]+25);
+			ctx.closePath();
 		}
 	}
 }
@@ -332,10 +312,10 @@ function Xen2K() {
 					// do nothing, because we already have passed this token 
 					break;
 				default: // instruction
-					if (indentcount === 0)currentNode = new CanvasBox(FunctionInfos.get(elem),elem);
+					if (indentcount === 0)currentNode = new CanvasBox(FunctionInfos.get(atoi(elem).toString()),elem);
 					instructioncalled = true;
-					currentNode.nodename = FunctionInfos.get(elem);
-					currentNode.numstr = itoa(parseInt(elem));
+					currentNode.nodename = FunctionInfos.get(atoi(elem).toString());
+					currentNode.numstr = elem;
 					currentNode.position[0] = 25*loopcount;
 			}
 			if (instructioncalled === false && indentcount === 0) {
@@ -434,7 +414,7 @@ function Xen2K() {
 		return this.variables[b];
 	} // "1 07" : declare integer list named arg1, with its length arg0
 	this.OUTC=(a, b)=>{
-		document.getElementById("ide_console").innerHTML += [String.fromCharCode(this.set( this.arg(a, false))), '\n'].join();
+		document.getElementById("ide_console").innerHTML += [String.fromCharCode(this.set( this.arg(a, false))), '\n'].join('');
 		this.outcCalled = true;
 		return 0;
 	} // "1 1 " : print ascii code of arg0(not working on windows mode)
@@ -443,7 +423,7 @@ function Xen2K() {
 			document.getElementById("ide_console").innerHTML += String.fromCharCode(this.variables[this.arg(a, false)][index]);
 		}
 		document.getElementById("ide_console").innerHTML += '\n'
-		this.set(this.variables[this.arg(a, false)].join());
+		this.set(this.variables[this.arg(a, false)].join(''));
 		this.outcCalled = true;
 		return 0;
 	}// "1 26": print ascii code array of arg0(not working on windows mode)
@@ -520,8 +500,8 @@ function Xen2K() {
 	}
 	this.LIST2STR = (a, b) => {
 		//a is source list, b is reverse join flag
-		if (b !== 0 ) return this.set(this.arg(a, false).reverse().join());
-		else return this.set(this.arg(a, false).join())
+		if (b !== 0 ) return this.set(this.arg(a, false).reverse().join(''));
+		else return this.set(this.arg(a, false).join(''))
 	}
 	
 	this.command = [
@@ -579,20 +559,20 @@ function Xen2K() {
             else if ("><".indexOf(c) !== -1) { // user-defined function call
                 if (isRecordingNumber) {
                     isRecordingNumber = false;
-                    result.push( number.toString() );
+                    result.push( itoa(number) );
                 }
                 result.push( c );
             }
             else if ("/\\*_+.=".indexOf(c) !== -1) { // built-in function call
                 if (isRecordingNumber) {
                     isRecordingNumber = false;
-                    result.push( number.toString() );
+                    result.push( itoa(number) );
                 }
 				result.push( c );
 			}
 		}
         if (isRecordingNumber)
-            result.push( number.toString() );
+            result.push( itoa(number) );
 		return result;
     };
 	this.lookupFunction = function(token){
@@ -600,19 +580,21 @@ function Xen2K() {
 	};
 }
 
-
+var contentChanged = 1;
 // callback functions
 function onChangeFile(event) {
 	document.getElementById("ide_class").innerHTML = "변수 수정<input id=\"varEdit\" name=\"ide_VarEdit\" onchange=\"EditMemberVar(event)\">";
 	document.getElementById("ide_class").innerHTML += "<button onclick=\"createClass(event)\">새 클래스 만들기</button>"
 	var fileText;
+	FreshPageLoaded = false;
 	var file = event.target.files[0];
 	var reader = new FileReader();
 	reader.onload = function(e) {
 	  fileText = e.target.result;
+	  contentChanged = 1;
 	  bareNodeList_constructor = [];
 	  bareNodeList = [];
-	  constructorLoaded = false;
+	  constructorLoaded = 1;
 	  Xen2KHandle.read(fileText);
 	  PostLoadProject();
 	};
@@ -633,6 +615,7 @@ function drop_handler(ev) {
 	// Get the id of the target and add the moved element to the target's DOM
 	const data = ev.dataTransfer.getData("text/plain");
 	AddNodeToCanvas([ev.offsetX, ev.offsetY], data);
+	
 }
 var currentCanvasClassIndex = -1;
 var currentCanvasFuncIndex = -1;
@@ -642,20 +625,14 @@ var BranchParent = null;
 var isDragging = false;
 var rightbuttonDragging = false;
 var rightbuttonDraggingTimer = null;
-var commentplateArray = [[[]]];
 var focusedIndex = -1;
 var deleteType = 0;
 function canvas_mousedown_handler(e) {
 	e.preventDefault();
 	if (e.button === 0) {
 		if (!constructorLoaded) {
+			if (currentCanvasClassIndex === -1 || currentCanvasFuncIndex === -1) return;
 			var targetNode = null;
-			/*
-			for (var node of commentplateArray[currentCanvasClassIndex][currentCanvasFuncIndex]){
-				if (e.offsetX >= node.position[0] && e.offsetX <= node.position[0] + node.size[0] && e.offsetY >= node.position[1] && e.offsetY <= node.position[1]+node.size[1] - 10) {
-					targetNode = node;
-				}
-			}*/
 			for (var node of bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex]){
 				if (e.offsetX >= node.position[0] && e.offsetX <= node.position[0] + node.size[0] && e.offsetY >= node.position[1] && e.offsetY <= node.position[1]+node.size[1] - 10) {
 					targetNode = node;
@@ -689,16 +666,12 @@ function canvas_mousedown_handler(e) {
 				targetNode.dragging = true;
 				focusedIndex = bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex].indexOf(targetNode);
 				deleteType = 0;
-			} /*else if (targetNode !== null && targetNode.constructor === CanvasComment) {
-				targetNode.SetPosition(e.offsetX, e.offsetY);
-				targetNode.dragging = true;
-				focusedIndex = commentplateArray[currentCanvasClassIndex][currentCanvasFuncIndex].indexOf(targetNode);
-				deleteType = 1;
-			} */else if (DropMenuHandle.activated && e.offsetX >= DropMenuHandle.position[0] && e.offsetX < DropMenuHandle.position[0] + DropMenuHandle.size[0] && e.offsetY >= DropMenuHandle.position[1] && e.offsetY < DropMenuHandle.position[1] + DropMenuHandle.size[1] ) {
+			} else if (DropMenuHandle.activated && e.offsetX >= DropMenuHandle.position[0] && e.offsetX < DropMenuHandle.position[0] + DropMenuHandle.size[0] && e.offsetY >= DropMenuHandle.position[1] && e.offsetY < DropMenuHandle.position[1] + DropMenuHandle.size[1] ) {
 				// click element inside dropdown menu
 				var clickpointY = Math.floor((e.offsetY- DropMenuHandle.position[1] ) / 16);
 				bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex].push(new CanvasBox(DropMenuHandle.MenuList[clickpointY + DropMenuHandle.sightpoint][1] ,DropMenuHandle.MenuList[clickpointY][0]));
 				bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][bareNodeList.length-1].SetPosition(e.offsetX, e.offsetY);
+				contentChanged = 0;
 			}
 			else {
 				// moving background
@@ -707,13 +680,9 @@ function canvas_mousedown_handler(e) {
 			
 			DropMenuHandle.activated = false;
 		} else {
+			if (currentCanvasClassIndex === -1 ) return;
 			var targetNode = null;
-			/*
-			for (var node of commentplateArray[currentCanvasClassIndex][currentCanvasFuncIndex]){
-				if (e.offsetX >= node.position[0] && e.offsetX <= node.position[0] + node.size[0] && e.offsetY >= node.position[1] && e.offsetY <= node.position[1]+node.size[1] - 10) {
-					targetNode = node;
-				}
-			}*/
+			
 			for (var node of bareNodeList_constructor[currentCanvasClassIndex]){
 				if (e.offsetX >= node.position[0] && e.offsetX <= node.position[0] + node.size[0] && e.offsetY >= node.position[1] && e.offsetY <= node.position[1]+node.size[1] - 10) {
 					targetNode = node;
@@ -747,75 +716,91 @@ function canvas_mousedown_handler(e) {
 				targetNode.dragging = true;
 				focusedIndex = bareNodeList_constructor[currentCanvasClassIndex].indexOf(targetNode);
 				deleteType = 0;
-			} /*else if (targetNode !== null && targetNode.constructor === CanvasComment) {
-				targetNode.SetPosition(e.offsetX, e.offsetY);
-				targetNode.dragging = true;
-				focusedIndex = commentplateArray[currentCanvasClassIndex][currentCanvasFuncIndex].indexOf(targetNode);
-				deleteType = 1;
-			} */else if (DropMenuHandle.activated && e.offsetX >= DropMenuHandle.position[0] && e.offsetX < DropMenuHandle.position[0] + DropMenuHandle.size[0] && e.offsetY >= DropMenuHandle.position[1] && e.offsetY < DropMenuHandle.position[1] + DropMenuHandle.size[1] ) {
+			} else if (DropMenuHandle.activated && e.offsetX >= DropMenuHandle.position[0] && e.offsetX < DropMenuHandle.position[0] + DropMenuHandle.size[0] && e.offsetY >= DropMenuHandle.position[1] && e.offsetY < DropMenuHandle.position[1] + DropMenuHandle.size[1] ) {
 				// click element inside dropdown menu
 				var clickpointY = Math.floor((e.offsetY- DropMenuHandle.position[1] ) / 16);
 				bareNodeList_constructor[currentCanvasClassIndex].push(new CanvasBox(DropMenuHandle.MenuList[clickpointY + DropMenuHandle.sightpoint][1] ,DropMenuHandle.MenuList[clickpointY][0]));
 				bareNodeList_constructor[currentCanvasClassIndex][bareNodeList.length-1].SetPosition(e.offsetX, e.offsetY);
+				contentChanged = 0;
 			}
 			else {
 				// moving background
 				isDragging = true;
 			}
-			
+			typingComment = null;
 			DropMenuHandle.activated = false;
 		}
-		//if (typingComment !== null && !(e.offsetX >= typingComment.position[0] && e.offsetX <= typingComment.position[0] + typingComment.size[0] && e.offsetY >= typingComment.position[1] && e.offsetY <= typingComment.position[1]+24)) {
-		//	typingComment = null;
-		//}
 	} else if (e.button === 2) {
-		rightbuttonDraggingTimer = setTimeout(function (x, y) {
-			DropMenuHandle.activated = false;
-			rightbuttonDragging = true;
-			//commentplateArray[currentCanvasClassIndex][currentCanvasFuncIndex].push(new CanvasComment("comment" + commentplateArray[currentCanvasClassIndex][currentCanvasFuncIndex].length.toString()));
-			//commentplateArray[currentCanvasClassIndex][currentCanvasFuncIndex][commentplateArray[currentCanvasClassIndex][currentCanvasFuncIndex].length-1].position = [e.offsetX, e.offsetY];
-			//commentplateArray[currentCanvasClassIndex][currentCanvasFuncIndex][commentplateArray[currentCanvasClassIndex][currentCanvasFuncIndex].length-1].activated = true;
-		}, 200, e.offsetX, e.offsetY);
+		DropMenuHandle.activated = false;
+		if (rightbuttonDraggingTimer !== null) {
+			clearTimeout(rightbuttonDraggingTimer);
+			rightbuttonDraggingTimer = null;
+			var targetNode = null;
+			if (constructorLoaded) {
+				if (currentCanvasClassIndex <0) return;
+				for (var node of bareNodeList_constructor[currentCanvasClassIndex]){
+					if (e.offsetX >= node.position[0] && e.offsetX <= node.position[0] + node.size[0] && e.offsetY >= node.position[1] && e.offsetY <= node.position[1]+node.size[1] - 10) {
+						targetNode = node;
+					}
+				}
+				if (targetNode !== null) {
+					typingComment = targetNode;
+				}
+			} else {
+				if (currentCanvasClassIndex <0 || currentCanvasFuncIndex <0) return;
+				for (var node of bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex]){
+					if (e.offsetX >= node.position[0] && e.offsetX <= node.position[0] + node.size[0] && e.offsetY >= node.position[1] && e.offsetY <= node.position[1]+node.size[1] - 10) {
+						targetNode = node;
+					}
+				}
+				if (targetNode !== null) {
+					typingComment = targetNode;
+				}
+			}
+		} else {
+			rightbuttonDraggingTimer = setTimeout(function (x, y) {
+				DropMenuHandle.position = [x, y];
+				DropMenuHandle.activated = true;
+			}, 200, e.offsetX, e.offsetY);
+		}
 	}
 }
 function canvas_mousemove_handler(e){
 	if (focusedIndex>=0){
 		if (!constructorLoaded) {
-			if (bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex].length > 0 && bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].dragging) {
-				bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].SetPosition(e.offsetX, e.offsetY);
+			if (currentCanvasClassIndex >=0 && currentCanvasFuncIndex >= 0) {
+				if (bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex].length > 0 && bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].dragging) {
+					bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].SetPosition(e.offsetX, e.offsetY);
+					return;
+				}
 			}
 		} else {
-			if (bareNodeList_constructor[currentCanvasClassIndex].length > 0 && bareNodeList[currentCanvasClassIndex][focusedIndex].dragging) {
-				bareNodeList_constructor[currentCanvasClassIndex][focusedIndex].SetPosition(e.offsetX, e.offsetY);
+			if (currentCanvasClassIndex >=0 ) {
+				if (bareNodeList_constructor[currentCanvasClassIndex].length > 0 && bareNodeList_constructor[currentCanvasClassIndex][focusedIndex].dragging) {
+					bareNodeList_constructor[currentCanvasClassIndex][focusedIndex].SetPosition(e.offsetX, e.offsetY);
+					return;
+				}
 			}
-			
 		}
-		/*if (commentplateArray[currentCanvasClassIndex][currentCanvasFuncIndex].length > 0 && commentplateArray[currentCanvasClassIndex][currentCanvasFuncIndex][commentplateArray[currentCanvasClassIndex][currentCanvasFuncIndex].length-1].dragging) {
-			commentplateArray[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].SetPosition(e.offsetX, e.offsetY);;
-		}
-	
-	
-		if (rightbuttonDragging){
-			commentplateArray[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].size = [e.offsetX - commentplateArray[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].position[0], e.offsetY - commentplateArray[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].position[1]];
-		}*/
+		
 	}
 	if (isDragging){
-		/*
-		for (var node of commentplateArray[currentCanvasClassIndex][currentCanvasFuncIndex]) {
-			node.position[0] += e.movementX;
-			node.position[1] += e.movementY;
-		}*/
 		if (!constructorLoaded) {
-			for (var node of bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex]) {
-				node.position[0] += e.movementX;
-				node.position[1] += e.movementY;
+			if (currentCanvasClassIndex >=0 && currentCanvasFuncIndex >= 0) {
+				for (var node of bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex]) {
+					node.position[0] += e.movementX;
+					node.position[1] += e.movementY;
+				}
 			}
 		} else {
-			for (var node of bareNodeList_constructor[currentCanvasClassIndex]) {
-				node.position[0] += e.movementX;
-				node.position[1] += e.movementY;
+			if (currentCanvasClassIndex >=0 ) {
+				for (var node of bareNodeList_constructor[currentCanvasClassIndex]) {
+					node.position[0] += e.movementX;
+					node.position[1] += e.movementY;
+				}
 			}
 		}
+		return;
 	}
 	if (BranchPoint !== 0) {
 		DrawingLine[1] = [e.offsetX, e.offsetY];
@@ -825,12 +810,17 @@ function canvas_mouseup_handler(e){
 	e.preventDefault();
 	if (e.button === 0) {
 		if (focusedIndex >= 0){
-			if (bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex].length >0) bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].dragging = false;
-			//if (commentplateArray[currentCanvasClassIndex][currentCanvasFuncIndex].length > 0) commentplateArray[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].dragging = false;
+			if (currentCanvasClassIndex >= 0 && bareNodeList_constructor[currentCanvasClassIndex].length >0 ) {
+				bareNodeList_constructor[currentCanvasClassIndex][focusedIndex].dragging = false;
+			}
+			if (currentCanvasClassIndex >= 0 && currentCanvasFuncIndex >=0 && bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex].length >0) {
+				bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].dragging = false;
+			}
 		}
 		var targetNode = null;
 		if (BranchPoint !== 0){
 			if (!constructorLoaded) {
+				if (currentCanvasClassIndex === -1 || currentCanvasFuncIndex === -1) return;
 				for (var node of bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex]){
 					if ( e.offsetX >= node.position[0] && e.offsetX <= node.position[0] + node.size[0] && e.offsetY >= node.position[1] && e.offsetY <= node.position[1]+node.size[1] - 10){
 						var parentindex = bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex].indexOf(BranchParent);
@@ -866,6 +856,7 @@ function canvas_mouseup_handler(e){
 					}
 				}
 			} else {
+				if (currentCanvasClassIndex === -1 ) return;
 				for (var node of bareNodeList_constructor[currentCanvasClassIndex]){
 					if ( e.offsetX >= node.position[0] && e.offsetX <= node.position[0] + node.size[0] && e.offsetY >= node.position[1] && e.offsetY <= node.position[1]+node.size[1] - 10){
 						var parentindex = bareNodeList_constructor[currentCanvasClassIndex].indexOf(BranchParent);
@@ -901,6 +892,7 @@ function canvas_mouseup_handler(e){
 					}
 				}
 			}
+			contentChanged = 0;
 		}
 		//reset
 		BranchParent = null;
@@ -909,24 +901,7 @@ function canvas_mouseup_handler(e){
 		isDragging = false;
 		
 	} else if (e.button === 2) {
-		if (rightbuttonDragging) {
-			/*
-			commentplateArray[currentCanvasClassIndex][currentCanvasFuncIndex][commentplateArray[currentCanvasClassIndex][currentCanvasFuncIndex].length-1].size = [e.offsetX - commentplateArray[currentCanvasClassIndex][currentCanvasFuncIndex][commentplateArray[currentCanvasClassIndex][currentCanvasFuncIndex].length-1].position[0], e.offsetY - commentplateArray[currentCanvasClassIndex][currentCanvasFuncIndex][commentplateArray[currentCanvasClassIndex][currentCanvasFuncIndex].length-1].position[1]];
-			if (commentplateArray[currentCanvasClassIndex][currentCanvasFuncIndex][commentplateArray[currentCanvasClassIndex][currentCanvasFuncIndex].length-1].size[0] < 0) {
-				commentplateArray[currentCanvasClassIndex][currentCanvasFuncIndex][commentplateArray[currentCanvasClassIndex][currentCanvasFuncIndex].length-1].position[0] += commentplateArray[currentCanvasClassIndex][currentCanvasFuncIndex][commentplateArray[currentCanvasClassIndex][currentCanvasFuncIndex].length-1].size[0];
-				commentplateArray[currentCanvasClassIndex][currentCanvasFuncIndex][commentplateArray[currentCanvasClassIndex][currentCanvasFuncIndex].length-1].size[0] = commentplateArray[currentCanvasClassIndex][currentCanvasFuncIndex][commentplateArray[currentCanvasClassIndex][currentCanvasFuncIndex].length-1].size[0] * (-1);
-			}
-			if (commentplateArray[currentCanvasClassIndex][currentCanvasFuncIndex][commentplateArray[currentCanvasClassIndex][currentCanvasFuncIndex].length-1].size[1] < 0) {
-				commentplateArray[currentCanvasClassIndex][currentCanvasFuncIndex][commentplateArray[currentCanvasClassIndex][currentCanvasFuncIndex].length-1].position[1] += commentplateArray[currentCanvasClassIndex][currentCanvasFuncIndex][commentplateArray[currentCanvasClassIndex][currentCanvasFuncIndex].length-1].size[1];
-				commentplateArray[currentCanvasClassIndex][currentCanvasFuncIndex][commentplateArray[currentCanvasClassIndex][currentCanvasFuncIndex].length-1].size[1] = commentplateArray[currentCanvasClassIndex][currentCanvasFuncIndex][commentplateArray[currentCanvasClassIndex][currentCanvasFuncIndex].length-1].size[1] * (-1);
-			}*/
-		}
-		else{
-			clearTimeout(rightbuttonDraggingTimer);
-			DropMenuHandle.position = [e.offsetX, e.offsetY];
-			DropMenuHandle.activated = true;
-		}
-		rightbuttonDragging = false;
+		// do nothing
 	}
 }
 
@@ -940,91 +915,71 @@ function canvas_wheel_handler(e) {
 
 var typingComment = null;
 
-function canvas_doubleclick_handler(e){
-	e.preventDefault();/*
-	if (e.button === 0) {
-		var targetNode = null;
-		for (var node of commentplateArray[currentCanvasClassIndex][currentCanvasFuncIndex]){
-			if (e.offsetX >= node.position[0] && e.offsetX < node.position[0] + node.size[0] && e.offsetY >= node.position[1] && e.offsetY < node.position[1]+node.size[1]) {
-				targetNode = node;
-			}
-		}
-		if (targetNode !== null){
-			typingComment = targetNode;
-		}
-	}*/
-}
-
 function canvas_keydown_handler(e){
-	//e.preventDefault();
-	/*
-	if (typingComment !== null) {
-		// editing typingComment
-		if (e.key === "Backspace") typingComment.nodename = typingComment.nodename.slice(0, typingComment.nodename.length-1);
-		else if (e.key.length === 1)typingComment.nodename = typingComment.nodename.concat(e.key);
-	}
-	else {*/
-		if (e.key === "Delete" && focusedIndex !== -1){
-			if (constructorLoaded) {
-				if ( deleteType === 0 && bareNodeList_constructor[currentCanvasClassIndex].length > 0){ // delete node
-					if (bareNodeList_constructor[currentCanvasClassIndex][focusedIndex].leftBranch !== null){
-						bareNodeList_constructor[currentCanvasClassIndex][focusedIndex].leftBranch.parentNode = null;
-					}
-					if (bareNodeList_constructor[currentCanvasClassIndex][focusedIndex].rightBranch !== null){
-						bareNodeList_constructor[currentCanvasClassIndex][focusedIndex].rightBranch.parentNode = null;
-					}
-					if (bareNodeList_constructor[currentCanvasClassIndex][focusedIndex].parentNode !== null){
-						if (bareNodeList_constructor[currentCanvasClassIndex][focusedIndex].parentNode.leftBranch === bareNodeList[focusedIndex]){
-							bareNodeList_constructor[currentCanvasClassIndex][focusedIndex].parentNode.leftBranch = null;
-						}
-						if (bareNodeList_constructor[currentCanvasClassIndex][focusedIndex].parentNode.rightBranch === bareNodeList[focusedIndex]){
-							bareNodeList_constructor[currentCanvasClassIndex][focusedIndex].parentNode.rightBranch = null;
-						}
-					}
-					bareNodeList_constructor[currentCanvasClassIndex].splice(focusedIndex, 1);
-					focusedIndex = -1;
-				} else if (deleteType === 1 && commentplateArray[currentCanvasClassIndex][currentCanvasFuncIndex].length > 0){
-					commentplateArray[currentCanvasClassIndex][currentCanvasFuncIndex].pop();
+	if (e.key === "Delete" && focusedIndex !== -1 && typingComment === null){
+		if (constructorLoaded) {
+			if ( deleteType === 0 && bareNodeList_constructor[currentCanvasClassIndex].length > 0){ // delete node
+				if (bareNodeList_constructor[currentCanvasClassIndex][focusedIndex].leftBranch !== null){
+					bareNodeList_constructor[currentCanvasClassIndex][focusedIndex].leftBranch.parentNode = null;
 				}
-			} else {
-				if ( deleteType === 0 && bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex].length > 0){ // delete node
-					if (bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].leftBranch !== null){
-						bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].leftBranch.parentNode = null;
-					}
-					if (bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].rightBranch !== null){
-						bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].rightBranch.parentNode = null;
-					}
-					if (bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].parentNode !== null){
-						if (bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].parentNode.leftBranch === bareNodeList[focusedIndex]){
-							bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].parentNode.leftBranch = null;
-						}
-						if (bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].parentNode.rightBranch === bareNodeList[focusedIndex]){
-							bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].parentNode.rightBranch = null;
-						}
-					}
-					bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex].splice(focusedIndex, 1);
-					focusedIndex = -1;
-				} else if (deleteType === 1 && commentplateArray[currentCanvasClassIndex][currentCanvasFuncIndex].length > 0){
-					commentplateArray[currentCanvasClassIndex][currentCanvasFuncIndex].pop();
+				if (bareNodeList_constructor[currentCanvasClassIndex][focusedIndex].rightBranch !== null){
+					bareNodeList_constructor[currentCanvasClassIndex][focusedIndex].rightBranch.parentNode = null;
 				}
+				if (bareNodeList_constructor[currentCanvasClassIndex][focusedIndex].parentNode !== null){
+					if (bareNodeList_constructor[currentCanvasClassIndex][focusedIndex].parentNode.leftBranch === bareNodeList[focusedIndex]){
+						bareNodeList_constructor[currentCanvasClassIndex][focusedIndex].parentNode.leftBranch = null;
+					}
+					if (bareNodeList_constructor[currentCanvasClassIndex][focusedIndex].parentNode.rightBranch === bareNodeList[focusedIndex]){
+						bareNodeList_constructor[currentCanvasClassIndex][focusedIndex].parentNode.rightBranch = null;
+					}
+				}
+				bareNodeList_constructor[currentCanvasClassIndex].splice(focusedIndex, 1);
+				focusedIndex = -1;
+			} 
+		} else {
+			if ( deleteType === 0 && bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex].length > 0){ // delete node
+				if (bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].leftBranch !== null){
+					bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].leftBranch.parentNode = null;
+				}
+				if (bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].rightBranch !== null){
+					bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].rightBranch.parentNode = null;
+				}
+				if (bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].parentNode !== null){
+					if (bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].parentNode.leftBranch === bareNodeList[focusedIndex]){
+						bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].parentNode.leftBranch = null;
+					}
+					if (bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].parentNode.rightBranch === bareNodeList[focusedIndex]){
+						bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].parentNode.rightBranch = null;
+					}
+				}
+				bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex].splice(focusedIndex, 1);
+				focusedIndex = -1;
 			}
 		}
-	// }
+	} else if (typingComment !== null) {
+		console.log(e.key);
+		if (e.key === "Backspace") {
+			typingComment.comment = typingComment.comment.substring(0, typingComment.comment.length-1);
+		} else if (e.key === "Enter"){
+			typingComment = null;
+		} else if (e.key !== "Shift") {
+			typingComment.comment += e.key;
+		}
+	}
 }
 
 function PostLoadProject () {
-	localStorage = window.localStorage;
 	localStorage.setItem("X2Kcount", Xen2KHandle.construction.length);
 	bareNodeList = new Array(Xen2KHandle.construction.length);
 	bareNodeList_constructor = new Array(Xen2KHandle.construction.length);
 	for (var index = 0; index < Xen2KHandle.construction.length; index++){
-		localStorage.setItem("constructor"+index.toString(), Xen2KHandle.construction[index]);
+		localStorage.setItem("constructor"+index.toString(), Xen2KHandle.construction[index].join(''));
 		bareNodeList_constructor[index] =( Xen2KHandle.BuildCanvasBoxTree(Xen2KHandle.construction[index]));
 		localStorage.setItem("memvar"+index.toString(), Xen2KHandle.classmember[index]);
 		localStorage.setItem("X2KClassFuncCount"+ index.toString(), Xen2KHandle.classFunction[index].length);
 		bareNodeList[index] = new Array(Xen2KHandle.classFunction[index].length);
 		for (var index2 in Xen2KHandle.classFunction[index]) {
-			localStorage.setItem("memfunc"+index.toString()+"_"+(index2).toString(), Xen2KHandle.classFunction[index][index2]);
+			localStorage.setItem("memfunc"+index.toString()+"_"+(index2).toString(), Xen2KHandle.classFunction[index][index2].join(''));
 			bareNodeList[index][index2] = Xen2KHandle.BuildCanvasBoxTree(Xen2KHandle.classFunction[index][index2]);
 		}
 	}
@@ -1074,6 +1029,7 @@ function StringifyBareNodeList(CanvasBoxNode){
 	for (var index1 of rootNodeList){
 		recursiveScriptBuilder(index1);
 	}
+
 	return result;
 }
 
@@ -1088,53 +1044,66 @@ function savehandler(e) {
 			localStorage.setItem("memfunc"+index.toString()+"_"+(index2).toString(), StringifyBareNodeList(bareNodeList[index][index2]));
 		}
 	}
+	contentChanged = 1;
+	refreshClassExplorer();
 }
 
 function exporthandler(e) {
-	var rootNodeList =  [];
-	// member saving
-	var resultscript = "";
-	for (var index0 in Xen2KHandle.construction) {
-		for (var member of Xen2KHandle.classmember[index0]){
-			resultscript += member.toString() + ",";
+	if (contentChanged === 0) {
+		var savemessagedialog = document.getElementById("savedialog");
+		savemessagedialog.showModal();
+	} else {
+		var rootNodeList =  [];
+		// member saving
+		var resultscript = "";
+		for (var index0 in Xen2KHandle.construction) {
+			for (var member of Xen2KHandle.classmember[index0]){
+				resultscript += member.toString() + ",";
+			}
+			resultscript += "\n#";
+			//constructor saving
+			resultscript += window.localStorage.getItem("constructor"+index0.toString()); // constructor;
+			//member function saving
+			for (var index1 in Xen2KHandle.classFunction[index0]){
+				resultscript += "\n! ";
+				resultscript += window.localStorage.getItem("memfunc"+index0.toString()+"_"+index1.toString());
+			}
+			resultscript += "\n&\n";
 		}
-		resultscript += "\n#";
-		//constructor saving
-
-		resultscript += window.localStorage.getItem("constructor"+index0.toString()); // constructor;
-		for (var index1 in Xen2KHandle.classFunction[index0]){
-			resultscript += "\n! ";
-			resultscript += window.localStorage.getItem("memfunc"+index0.toString()+"_"+index1.toString());
-		}
-		resultscript += "\n&\n";
+		
+		// download the result
+		var file = new Blob([resultscript], {type:"text/plain"});
+		var a = document.createElement("a"),url = URL.createObjectURL(file);
+		a.href = url;
+		a.download = "exported.x2k";
+		document.body.appendChild(a);
+		a.click();
+		setTimeout(function() {
+			document.body.removeChild(a);
+			window.URL.revokeObjectURL(url);  
+		}, 0);
 	}
-	
-	// download the result
-	var file = new Blob([resultscript], {type:"text/plain"});
-	var a = document.createElement("a"),url = URL.createObjectURL(file);
-	a.href = url;
-	a.download = "exported.x2k";
-	document.body.appendChild(a);
-	a.click();
-	setTimeout(function() {
-		document.body.removeChild(a);
-		window.URL.revokeObjectURL(url);  
-	}, 0);
 }
 
 // normal function
-
 
 function AddNodeToCanvas(pos, NodeName) {
 	for (var node in NodeArray){
 		if (NodeArray[node].nodename === NodeName){
 			var sourceNode = new CanvasBox("","");
 			Object.assign(sourceNode, NodeArray[node]);
+			if (sourceNode.numstr !== "*" && sourceNode.numstr !== "_") sourceNode.numstr = itoa(parseInt(sourceNode.numstr));
 			sourceNode.SetPosition(pos[0], pos[1]);
 			if (!constructorLoaded) {
-				bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex].push(sourceNode);
+				if (currentCanvasClassIndex >=0 && currentCanvasFuncIndex >=0){
+					bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex].push(sourceNode);
+					contentChanged = 0;
+				}
 			} else {
-				bareNodeList_constructor[currentCanvasClassIndex].push(sourceNode);
+				if (currentCanvasClassIndex >=0 ){
+					bareNodeList_constructor[currentCanvasClassIndex].push(sourceNode);
+					contentChanged = 0;
+				}
 			}
 			break;
 		}
@@ -1219,6 +1188,18 @@ function copyClass(ev)
 }
 
 function refreshClassExplorer () {
+	if (localStorage.length >0) {
+		for (var index0 in Xen2KHandle.construction){
+			Xen2KHandle.construction[index0] = Xen2KHandle.tokenize(window.localStorage.getItem("constructor"+index0.toString())); // constructor;
+			Xen2KHandle.classmember[index0] = Xen2KHandle.tokenize(window.localStorage.getItem("memvar"+index0.toString()));
+			Xen2KHandle.classmember[index0].pop(); //eliminate last element
+			//member function saving
+			for (var index1 in Xen2KHandle.classFunction[index0]){
+				Xen2KHandle.classFunction[index0][index1] = Xen2KHandle.tokenize(window.localStorage.getItem("memfunc"+index0.toString()+"_"+index1.toString()));
+			}
+		}
+	}
+	
 	document.getElementById("ide_class").innerHTML = "변수 수정<input id=\"varEdit\" name=\"ide_VarEdit\" onchange=\"EditMemberVar(event)\">";
 	document.getElementById("ide_class").innerHTML += "<button onclick=\"createClass(event)\">새 클래스 만들기</button>"
 	for (var i = 0 ; i < Xen2KHandle.construction.length; i++){
@@ -1349,10 +1330,15 @@ var constructorLoaded = false;
 var bareNodeList_constructor = [];
 
 function loadConstructor(ev) {
-	currentCanvasClassIndex = parseInt(ev.target.getAttribute("value"));
-	bareNodeList_constructor[currentCanvasClassIndex] =(Xen2KHandle.BuildCanvasBoxTree(Xen2KHandle.construction[parseInt(ev.target.getAttribute("value"))]));
-	constructorindex = parseInt(ev.target.getAttribute("value"));
-	constructorLoaded = true;
+	if (contentChanged === 0) {
+		var savemessagedialog = document.getElementById("savedialog");
+		savemessagedialog.showModal();
+	} else {
+		currentCanvasClassIndex = parseInt(ev.target.getAttribute("value"));
+		if (localStorage.getItem("constructor"+ev.target.getAttribute("value")) !== null)bareNodeList_constructor[currentCanvasClassIndex] =Xen2KHandle.BuildCanvasBoxTree(Xen2KHandle.tokenize(localStorage.getItem("constructor"+ev.target.getAttribute("value"))));
+		constructorindex = parseInt(ev.target.getAttribute("value"));
+		constructorLoaded = true;
+	}
 }
 
 function createMemVar(ev) {
@@ -1390,13 +1376,18 @@ function classvar_dbclick_handler(ev) {
 }
 var funcArray = [];
 function classFunc_dbclick_handler(ev) {
-	var index1 = parseInt(ev.target.value.split(",")[0]);
-	var index2 = parseInt(ev.target.value.split(",")[1]);
-	currentCanvasClassIndex = index1;
-	currentCanvasFuncIndex = index2; // including constructor -> +1 index
-	bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex] = Xen2KHandle.BuildCanvasBoxTree(Xen2KHandle.classFunction[index1][index2]);
-	constructorLoaded = false;
-	funcArray = [index1,index2];
+	if (contentChanged === 0) {
+		var savemessagedialog = document.getElementById("savedialog");
+		savemessagedialog.showModal();
+	} else {
+		var index1 = parseInt(ev.target.value.split(",")[0]);
+		var index2 = parseInt(ev.target.value.split(",")[1]);
+		currentCanvasClassIndex = index1;
+		currentCanvasFuncIndex = index2; // including constructor -> +1 index
+		if (localStorage.getItem("memfunc"+currentCanvasClassIndex.toString()+"_"+ currentCanvasFuncIndex.toString()) !== null)bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex] = Xen2KHandle.BuildCanvasBoxTree(Xen2KHandle.tokenize(localStorage.getItem("memfunc"+currentCanvasClassIndex.toString()+"_"+ currentCanvasFuncIndex.toString())));
+		constructorLoaded = false;
+		funcArray = [index1,index2];
+	}
 }
 
 function EditMemberVar (ev) {
@@ -1414,11 +1405,6 @@ function renderCanvas(){
 			}
 		} else {
 			if (currentCanvasFuncIndex >=0){
-				/*
-				for (var elem of commentplateArray[currentCanvasClassIndex][currentCanvasFuncIndex]){
-					elem.DrawNode();
-				}
-				*/
 				for (var elem of bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex]){
 					elem.DrawNode();
 				}
@@ -1508,6 +1494,25 @@ Background.innerHTML += "<span id = \"nodelist\" width=\"800px\" height=\"600px\
 	Xen2K IDE<br>\
     </span>";
 
+var savedialog = document.createElement("dialog");
+savedialog.id = "savedialog";
+var saveform = document.createElement("form");
+saveform.method = "dialog";
+saveform.innerText = "저장되지 않은 데이터가 지워집니다";
+var cancelbutton = document.createElement("button");
+cancelbutton.setAttribute("value", 0);
+cancelbutton.innerText = "돌아가기";
+var okbutton = document.createElement("button");
+okbutton.setAttribute("value", 1);
+okbutton.innerText = "무시";
+saveform.appendChild(cancelbutton);
+saveform.appendChild(okbutton);
+savedialog.appendChild(saveform);
+savedialog.addEventListener('close', function () {
+	contentChanged = parseInt(savedialog.returnValue);
+});
+document.getElementById("ide_main").appendChild(savedialog);
+
 var SaveButton = document.createElement("button");
 SaveButton.id = "saveButton";
 SaveButton.addEventListener("click", savehandler);
@@ -1563,10 +1568,11 @@ for (var node of NodeArray) {
 
 }
 
-
+var FreshPageLoaded = false;
 
 window.addEventListener('DOMContentLoaded', () => {
-	
+	FreshPageLoaded = true;
+	localStorage.clear();
 	// Get the element by id
 	var element1 = document.getElementsByClassName("nodes");
 	// Add the ondragstart event listener
@@ -1580,7 +1586,6 @@ window.addEventListener('DOMContentLoaded', () => {
 	element2.addEventListener("dragover", dragover_handler);
 
 	element2.addEventListener("mousedown", canvas_mousedown_handler);
-	element2.addEventListener("dblclick", canvas_doubleclick_handler);
 	element2.addEventListener("contextmenu", function(e) {e.preventDefault();return false;});
 	element2.addEventListener("mouseup",canvas_mouseup_handler);
 	element2.addEventListener("mousemove",canvas_mousemove_handler);
