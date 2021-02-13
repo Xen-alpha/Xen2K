@@ -394,9 +394,11 @@ function Xen2K() {
 		return resultNodeList;
 	}
 	this.Traverse = (DoNotDisplay) => {
-		this.currentNodeList = BuildCanvasBoxTree(construction[0], -1);
-		for (var rootnode of this.currentNodeList){
-			this.invoke([rootnode, rootnode.leftBranch, rootnode.rightBranch], DoNotDisplay);
+		this.currentNodeList = this.BuildCanvasBoxTree(this.construction[0], -1);
+		for (var node of this.currentNodeList){
+			if (node.parentNode === null) {
+				this.invoke([node, node.leftBranch, node.rightBranch], DoNotDisplay);
+			}
 		}
 	};
 	this.set = (value) =>{
@@ -597,7 +599,7 @@ function Xen2K() {
         var ISA = instruction;
         if (DoNotDisplay && (ISA[0].name === '2562'|| ISA[0].naver === '2569'))
             return this.set(this.arg(ISA[1], DoNotDisplay));
-        return (this.functions.get(ISA[0].nodename))(ISA[1],ISA[2]);
+        return (this.functions.get(atoi(ISA[0].numstr).toString()))(ISA[1],ISA[2]);
     };
 	this.tokenize= function(data){
 		if (data === "") return [];
@@ -728,8 +730,9 @@ function canvas_mousedown_handler(e) {
 			} else if (DropMenuHandle.activated && e.offsetX >= DropMenuHandle.position[0] && e.offsetX < DropMenuHandle.position[0] + DropMenuHandle.size[0] && e.offsetY >= DropMenuHandle.position[1] && e.offsetY < DropMenuHandle.position[1] + DropMenuHandle.size[1] ) {
 				// click element inside dropdown menu
 				var clickpointY = Math.floor((e.offsetY- DropMenuHandle.position[1] ) / 16);
-				bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex].push(new CanvasBox(DropMenuHandle.MenuList[clickpointY + DropMenuHandle.sightpoint][1] ,DropMenuHandle.MenuList[clickpointY][0]));
-				bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][bareNodeList.length-1].SetPosition(e.offsetX, e.offsetY);
+				bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex].push(new CanvasBox(DropMenuHandle.MenuList[clickpointY + DropMenuHandle.sightpoint][1] , itoa(parseInt(DropMenuHandle.MenuList[clickpointY + DropMenuHandle.sightpoint][0])) ));
+				bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex].length-1].index = bareNodeList.length-1;
+				bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex].length-1].SetPosition(e.offsetX, e.offsetY);
 				contentChanged = 0;
 			}
 			else {
@@ -778,8 +781,9 @@ function canvas_mousedown_handler(e) {
 			} else if (DropMenuHandle.activated && e.offsetX >= DropMenuHandle.position[0] && e.offsetX < DropMenuHandle.position[0] + DropMenuHandle.size[0] && e.offsetY >= DropMenuHandle.position[1] && e.offsetY < DropMenuHandle.position[1] + DropMenuHandle.size[1] ) {
 				// click element inside dropdown menu
 				var clickpointY = Math.floor((e.offsetY- DropMenuHandle.position[1] ) / 16);
-				bareNodeList_constructor[currentCanvasClassIndex].push(new CanvasBox(DropMenuHandle.MenuList[clickpointY + DropMenuHandle.sightpoint][1] ,DropMenuHandle.MenuList[clickpointY][0]));
-				bareNodeList_constructor[currentCanvasClassIndex][bareNodeList.length-1].SetPosition(e.offsetX, e.offsetY);
+				bareNodeList_constructor[currentCanvasClassIndex].push(new CanvasBox(DropMenuHandle.MenuList[clickpointY + DropMenuHandle.sightpoint][1] ,itoa(parseInt(DropMenuHandle.MenuList[clickpointY + DropMenuHandle.sightpoint][0]))));
+				bareNodeList_constructor[currentCanvasClassIndex][bareNodeList_constructor[currentCanvasClassIndex].length-1].index = bareNodeList_constructor.length-1;
+				bareNodeList_constructor[currentCanvasClassIndex][bareNodeList_constructor[currentCanvasClassIndex].length-1].SetPosition(e.offsetX, e.offsetY);
 				contentChanged = 0;
 			}
 			else {
@@ -946,7 +950,7 @@ function canvas_mouseup_handler(e){
 								bareNodeList_constructor[currentCanvasClassIndex][parentindex].rightBranch = node;
 							}
 						}
-						node.parentNode = bareNodeList_constructor[parentindex];
+						node.parentNode = bareNodeList_constructor[currentCanvasClassIndex][parentindex];
 						break;
 					}
 				}
@@ -977,7 +981,7 @@ var typingComment = null;
 function canvas_keydown_handler(e){
 	if (e.key === "Delete" && focusedIndex !== -1 && typingComment === null){
 		if (constructorLoaded) {
-			if ( deleteType === 0 && bareNodeList_constructor[currentCanvasClassIndex].length > 0){ // delete node
+			if (  bareNodeList_constructor[currentCanvasClassIndex].length > 0){ // delete node
 				if (bareNodeList_constructor[currentCanvasClassIndex][focusedIndex].leftBranch !== null){
 					bareNodeList_constructor[currentCanvasClassIndex][focusedIndex].leftBranch.parentNode = null;
 				}
@@ -985,10 +989,10 @@ function canvas_keydown_handler(e){
 					bareNodeList_constructor[currentCanvasClassIndex][focusedIndex].rightBranch.parentNode = null;
 				}
 				if (bareNodeList_constructor[currentCanvasClassIndex][focusedIndex].parentNode !== null){
-					if (bareNodeList_constructor[currentCanvasClassIndex][focusedIndex].parentNode.leftBranch === bareNodeList[focusedIndex]){
+					if (bareNodeList_constructor[currentCanvasClassIndex][focusedIndex].parentNode.leftBranch === bareNodeList_constructor[currentCanvasClassIndex][focusedIndex]){
 						bareNodeList_constructor[currentCanvasClassIndex][focusedIndex].parentNode.leftBranch = null;
 					}
-					if (bareNodeList_constructor[currentCanvasClassIndex][focusedIndex].parentNode.rightBranch === bareNodeList[focusedIndex]){
+					else if (bareNodeList_constructor[currentCanvasClassIndex][focusedIndex].parentNode.rightBranch === bareNodeList_constructor[currentCanvasClassIndex][focusedIndex]){
 						bareNodeList_constructor[currentCanvasClassIndex][focusedIndex].parentNode.rightBranch = null;
 					}
 				}
@@ -996,7 +1000,7 @@ function canvas_keydown_handler(e){
 				focusedIndex = -1;
 			} 
 		} else {
-			if ( deleteType === 0 && bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex].length > 0){ // delete node
+			if ( bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex].length > 0){ // delete node
 				if (bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].leftBranch !== null){
 					bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].leftBranch.parentNode = null;
 				}
@@ -1004,10 +1008,10 @@ function canvas_keydown_handler(e){
 					bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].rightBranch.parentNode = null;
 				}
 				if (bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].parentNode !== null){
-					if (bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].parentNode.leftBranch === bareNodeList[focusedIndex]){
+					if (bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].parentNode.leftBranch === bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex]){
 						bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].parentNode.leftBranch = null;
 					}
-					if (bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].parentNode.rightBranch === bareNodeList[focusedIndex]){
+					if (bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].parentNode.rightBranch === bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex]){
 						bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].parentNode.rightBranch = null;
 					}
 				}
@@ -1502,6 +1506,12 @@ function EditMemberVar (ev) {
 	}
 }
 
+function playProgram(ev) {
+	if (Xen2KHandle.construction.length === 0 || Xen2KHandle.construction[0].length === 0) return;
+	savehandler(ev);
+	Xen2KHandle.Traverse(false);
+}
+
 function renderCanvas(){
 	document.getElementById("MainCanvas").width = document.getElementById("MainCanvas").width; // reset the canvas
 	if (currentCanvasClassIndex >=0 ) {
@@ -1629,7 +1639,13 @@ var exportToFileButton = document.createElement("button");
 exportToFileButton.id = "exportButton";
 exportToFileButton.addEventListener("click", exporthandler);
 exportToFileButton.innerText = "X2K로 내보내기";
-document.getElementById("ide_main").appendChild(exportToFileButton); 
+document.getElementById("ide_main").appendChild(exportToFileButton);
+
+var PlayButton = document.createElement("button");
+PlayButton.id = "playButton";
+PlayButton.addEventListener("click", playProgram);
+PlayButton.innerText = "실행";
+document.getElementById("ide_main").appendChild(PlayButton);
 
 var formElement = document.createElement('form');
 formElement.name = "uploadedFile";
