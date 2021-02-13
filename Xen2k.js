@@ -198,11 +198,12 @@ function CanvasBox (nodename, numstr) {
 			ctx.rect(this.position[0]+this.size[0], this.position[1], 12 , this.size[1]);
 			ctx.fillStyle = "rgba(255, 255, 255, 1)";
 			ctx.fill();
+			ctx.closePath();
 			ctx.font = "12px Arial, sans-serif";
 			ctx.textAlign = "left";
 			ctx.textBaseline = "alphabetic";
 			ctx.strokeText(this.comment,this.position[0] +this.size[0], this.position[1]+25);
-			ctx.closePath();
+			
 		}
 	}
 }
@@ -220,17 +221,36 @@ function Xen2K() {
 	this.construction = [];
 	this.classmember = [];
 	this.classFunction = [];
+	this.comments = [];
+	this.constructorcomments = [];
 	
 	// read: parse code and set a binary CanvasBox Tree
 	this.read = function(data){
 		this.construction = [];
 		this.classmember = [];
 		this.classFunction = [];
+		this.comments = [];
+		this.constructorcomments = [];
+		
 		var classes = data.split("&");
 		classes.pop();
 		for(var classtext of classes) {
+			// comment Extraction
+			var commentdata = classtext.split("?");
+			var tempCommentArray = new Array(0);
+			var tempConstructorCommentArray = new Array(0);
+			for (var i = 1; i< commentdata.length; i++) {
+				var CommentTokens = commentdata[i].trim().split(",");
+				if (CommentTokens[0] === "-1") {
+					tempConstructorCommentArray.push([-1, parseInt(CommentTokens[1]), CommentTokens[2]] );
+				} else {
+					tempCommentArray.push([parseInt(CommentTokens[0]), parseInt(CommentTokens[1]), CommentTokens[2]] );
+				}
+			}
+			this.comments.push( tempCommentArray);
+			this.constructorcomments.push(tempConstructorCommentArray);
 			//member function
-			var tempdata = classtext.split("!");
+			var tempdata = commentdata[0].split("!");
 			var tempArray2 = new Array(0);
 			for (var i = 1; i< tempdata.length; i++) {
 				var memberFuncTokens = this.tokenize(tempdata[i].trim());
@@ -246,18 +266,18 @@ function Xen2K() {
 			var tempArray = tempdata2[0].split(",");
 			tempArray.pop();
 			this.classmember.push(tempArray);
-			currentCanvasClassIndex += 1;
 		}
-		refreshClassExplorer();		
+		refreshClassExplorer();
         return;
 	};
-	this.BuildCanvasBoxTree = function (tokens){
+	this.BuildCanvasBoxTree = function (tokens, TreeIndex){
 		if (tokens === []) return [];
 		var resultNodeList = [];
 		var tempRootNodeList = [];
 		var currentNode = null;
 		var loopcount = 0;
 		var indentcount = 0;
+		var indexcount = 0;
 		var instructioncalled = false;
 		for (var elem of tokens){
 			switch (elem){
@@ -304,6 +324,25 @@ function Xen2K() {
 				case '_': //previous
 					currentNode.nodename = elem;
 					currentNode.numstr = elem;
+					currentNode.index = indexcount;
+					if (TreeIndex <0) {
+						for (var index0 in this.constructorcomments) {
+							for (var index1 in this.constructorcomments[index0]) {
+								if ( this.constructorcomments[index0][index1][1] === indexcount ) {
+									currentNode.comment = this.constructorcomments[index0][index1][2];
+								}
+							}
+						}
+					} else {
+						for (var index0 in this.comments) {
+							for (var index1 in this.comments[index0]) {
+								if (this.comments[index0][index1][0] === TreeIndex && this.comments[index0][index1][1] === indexcount ) {
+									currentNode.comment = this.comments[index0][index1][2];
+								}
+							}
+						}
+					}
+					indexcount += 1;
 					instructioncalled = false;
 					break;
 				case '>': // do nothing for now
@@ -316,7 +355,27 @@ function Xen2K() {
 					instructioncalled = true;
 					currentNode.nodename = FunctionInfos.get(atoi(elem).toString());
 					currentNode.numstr = elem;
+					currentNode.index = indexcount;
+					if (TreeIndex <0) {
+						for (var index0 in this.constructorcomments) {
+							for (var index1 in this.constructorcomments[index0]) {
+								if ( this.constructorcomments[index0][index1][1] === indexcount ) {
+									currentNode.comment = this.constructorcomments[index0][index1][2];
+								}
+							}
+						}
+					} else {
+						for (var index0 in this.comments) {
+							for (var index1 in this.comments[index0]) {
+								if (this.comments[index0][index1][0] === TreeIndex && this.comments[index0][index1][1] === indexcount ) {
+									currentNode.comment = this.comments[index0][index1][2];
+								}
+							}
+						}
+					}
+					indexcount += 1;
 					currentNode.position[0] = 25*loopcount;
+					break;
 			}
 			if (instructioncalled === false && indentcount === 0) {
 				tempRootNodeList.push(currentNode);
@@ -325,9 +384,9 @@ function Xen2K() {
 		}
 		// linearization
 		function linearize (elem) {
+			resultNodeList.push(elem);
 			if (elem.leftBranch !== null)linearize(elem.leftBranch);
 			if (elem.rightBranch !== null)linearize(elem.rightBranch);
-			resultNodeList.push(elem);
 		}
 		for (var elem of tempRootNodeList){
 			linearize(elem);
@@ -335,7 +394,7 @@ function Xen2K() {
 		return resultNodeList;
 	}
 	this.Traverse = (DoNotDisplay) => {
-		this.currentNodeList = BuildCanvasBoxTree(construction[0]);
+		this.currentNodeList = BuildCanvasBoxTree(construction[0], -1);
 		for (var rootnode of this.currentNodeList){
 			this.invoke([rootnode, rootnode.leftBranch, rootnode.rightBranch], DoNotDisplay);
 		}
@@ -459,7 +518,7 @@ function Xen2K() {
 			}
 			catch (e) {
 				this.set(this.arg(b, false));
-				console.log(e);
+				//console.log(e);
 				break;
 			}
 		}
@@ -957,14 +1016,15 @@ function canvas_keydown_handler(e){
 			}
 		}
 	} else if (typingComment !== null) {
-		console.log(e.key);
+		e.preventDefault();
 		if (e.key === "Backspace") {
 			typingComment.comment = typingComment.comment.substring(0, typingComment.comment.length-1);
 		} else if (e.key === "Enter"){
 			typingComment = null;
-		} else if (e.key !== "Shift") {
+		} else if (e.key !== "Shift" && e.key !== ",") {
 			typingComment.comment += e.key;
 		}
+		contentChanged = 0;
 	}
 }
 
@@ -974,16 +1034,17 @@ function PostLoadProject () {
 	bareNodeList_constructor = new Array(Xen2KHandle.construction.length);
 	for (var index = 0; index < Xen2KHandle.construction.length; index++){
 		localStorage.setItem("constructor"+index.toString(), Xen2KHandle.construction[index].join(''));
-		bareNodeList_constructor[index] =( Xen2KHandle.BuildCanvasBoxTree(Xen2KHandle.construction[index]));
+		bareNodeList_constructor[index] =( Xen2KHandle.BuildCanvasBoxTree(Xen2KHandle.construction[index],-1));
+		localStorage.setItem("constructorComment" + index.toString(), StringifyBareNodeListComment(-1, bareNodeList_constructor[index]));
 		localStorage.setItem("memvar"+index.toString(), Xen2KHandle.classmember[index]);
 		localStorage.setItem("X2KClassFuncCount"+ index.toString(), Xen2KHandle.classFunction[index].length);
 		bareNodeList[index] = new Array(Xen2KHandle.classFunction[index].length);
 		for (var index2 in Xen2KHandle.classFunction[index]) {
 			localStorage.setItem("memfunc"+index.toString()+"_"+(index2).toString(), Xen2KHandle.classFunction[index][index2].join(''));
-			bareNodeList[index][index2] = Xen2KHandle.BuildCanvasBoxTree(Xen2KHandle.classFunction[index][index2]);
+			bareNodeList[index][index2] = Xen2KHandle.BuildCanvasBoxTree(Xen2KHandle.classFunction[index][index2], index2);
+			localStorage.setItem("memfuncComment"+index.toString() + "_" + index2.toString(), StringifyBareNodeListComment(index2, bareNodeList[index][index2]));
 		}
 	}
-	// now push data to bareNodeList
 }
 
 function StringifyBareNodeList(CanvasBoxNode){
@@ -991,8 +1052,8 @@ function StringifyBareNodeList(CanvasBoxNode){
 	var rootNodeList = [];
 	for (var elem in CanvasBoxNode){
 		if (CanvasBoxNode[elem].parentNode === null) {
-				rootNodeList.push(CanvasBoxNode[elem]); //type: CanvasBox
-			}
+			rootNodeList.push(CanvasBoxNode[elem]); //type: CanvasBox
+		}
 	}
 	if (rootNodeList.length>= 2){
 		var sorted = false;
@@ -1033,15 +1094,29 @@ function StringifyBareNodeList(CanvasBoxNode){
 	return result;
 }
 
+function StringifyBareNodeListComment ( commentNum,CanvasBoxNode) {
+	var result = "";
+	for (var elem in CanvasBoxNode){
+		if (CanvasBoxNode[elem].comment.length >0 ) {
+			result += "\n?" + commentNum.toString() +","+CanvasBoxNode[elem].index.toString() +","+CanvasBoxNode[elem].comment;
+		}
+	}
+	return result;
+}
+
 function savehandler(e) {
 	localStorage.clear();
 	localStorage.setItem("X2Kcount", Xen2KHandle.construction.length);
 	for (var index = 0; index < Xen2KHandle.construction.length; index++){
 		localStorage.setItem("constructor"+index.toString(), StringifyBareNodeList(bareNodeList_constructor[index]));
+		localStorage.setItem("constructorComment" + index.toString(), StringifyBareNodeListComment(-1, bareNodeList_constructor[index]));
+		//
 		localStorage.setItem("memvar"+index.toString(), Xen2KHandle.classmember[index]);
+		//
 		localStorage.setItem("X2KClassFuncCount"+ index.toString(), Xen2KHandle.classFunction[index].length);
 		for (var index2 in Xen2KHandle.classFunction[index]) {
 			localStorage.setItem("memfunc"+index.toString()+"_"+(index2).toString(), StringifyBareNodeList(bareNodeList[index][index2]));
+			localStorage.setItem("memfuncComment"+index.toString() + "_" + index2.toString(), StringifyBareNodeListComment(index2, bareNodeList[index][index2]));
 		}
 	}
 	contentChanged = 1;
@@ -1068,7 +1143,13 @@ function exporthandler(e) {
 				resultscript += "\n! ";
 				resultscript += window.localStorage.getItem("memfunc"+index0.toString()+"_"+index1.toString());
 			}
-			resultscript += "\n&\n";
+			//comment saving
+			resultscript += window.localStorage.getItem("constructorComment" + index0.toString());
+			for (var index1 in Xen2KHandle.classFunction[index0]) {
+				resultscript += window.localStorage.getItem("memfuncComment"+index0.toString()+"_"+index1.toString());
+			}
+			//finish
+			resultscript += "\n&";
 		}
 		
 		// download the result
@@ -1096,11 +1177,13 @@ function AddNodeToCanvas(pos, NodeName) {
 			sourceNode.SetPosition(pos[0], pos[1]);
 			if (!constructorLoaded) {
 				if (currentCanvasClassIndex >=0 && currentCanvasFuncIndex >=0){
+					sourceNode.index = bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex].length;
 					bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex].push(sourceNode);
 					contentChanged = 0;
 				}
 			} else {
 				if (currentCanvasClassIndex >=0 ){
+					sourceNode.index = bareNodeList_constructor[currentCanvasClassIndex].length;
 					bareNodeList_constructor[currentCanvasClassIndex].push(sourceNode);
 					contentChanged = 0;
 				}
@@ -1109,7 +1192,7 @@ function AddNodeToCanvas(pos, NodeName) {
 		}
 	}
 }
-
+/*
 function reflectToFunc(NodeList) {
 	var resultArray = [];
 	var sourceArray = [];
@@ -1155,7 +1238,7 @@ function reflectToFunc(NodeList) {
 	}
 	return resultArray;
 }
-
+*/
 var Xen2KHandle = new Xen2K();
 
 function createClass() {
@@ -1191,8 +1274,7 @@ function refreshClassExplorer () {
 	if (localStorage.length >0) {
 		for (var index0 in Xen2KHandle.construction){
 			Xen2KHandle.construction[index0] = Xen2KHandle.tokenize(window.localStorage.getItem("constructor"+index0.toString())); // constructor;
-			Xen2KHandle.classmember[index0] = Xen2KHandle.tokenize(window.localStorage.getItem("memvar"+index0.toString()));
-			Xen2KHandle.classmember[index0].pop(); //eliminate last element
+			Xen2KHandle.classmember[index0] = (window.localStorage.getItem("memvar"+index0.toString())).split(",");
 			//member function saving
 			for (var index1 in Xen2KHandle.classFunction[index0]){
 				Xen2KHandle.classFunction[index0][index1] = Xen2KHandle.tokenize(window.localStorage.getItem("memfunc"+index0.toString()+"_"+index1.toString()));
@@ -1335,7 +1417,19 @@ function loadConstructor(ev) {
 		savemessagedialog.showModal();
 	} else {
 		currentCanvasClassIndex = parseInt(ev.target.getAttribute("value"));
-		if (localStorage.getItem("constructor"+ev.target.getAttribute("value")) !== null)bareNodeList_constructor[currentCanvasClassIndex] =Xen2KHandle.BuildCanvasBoxTree(Xen2KHandle.tokenize(localStorage.getItem("constructor"+ev.target.getAttribute("value"))));
+		if (localStorage.getItem("constructor"+ev.target.getAttribute("value")).length >0) {
+			bareNodeList_constructor[currentCanvasClassIndex] =Xen2KHandle.BuildCanvasBoxTree(Xen2KHandle.tokenize(localStorage.getItem("constructor"+ev.target.getAttribute("value"))),-1);
+			if (localStorage.getItem("constructorComment" + currentCanvasClassIndex.toString()) !== null ){
+				for (var index1 in localStorage.getItem("constructorComment" + currentCanvasClassIndex.toString()).split("?") ){
+					if (index1 === 0 ) continue;
+					for (var index in bareNodeList_constructor[currentCanvasClassIndex]) { 
+						if (bareNodeList_constructor[currentCanvasClassIndex][index].index === parseInt(localStorage.getItem("constructorComment" + currentCanvasClassIndex.toString()).split("?")[index1].split(",")[1])) {
+							bareNodeList_constructor[currentCanvasClassIndex][index].comment = localStorage.getItem("constructorComment" + currentCanvasClassIndex.toString()).split("?")[index1].split(",")[2];
+						}
+					}
+				}
+			}
+		}
 		constructorindex = parseInt(ev.target.getAttribute("value"));
 		constructorLoaded = true;
 	}
@@ -1383,22 +1477,34 @@ function classFunc_dbclick_handler(ev) {
 		var index1 = parseInt(ev.target.value.split(",")[0]);
 		var index2 = parseInt(ev.target.value.split(",")[1]);
 		currentCanvasClassIndex = index1;
-		currentCanvasFuncIndex = index2; // including constructor -> +1 index
-		if (localStorage.getItem("memfunc"+currentCanvasClassIndex.toString()+"_"+ currentCanvasFuncIndex.toString()) !== null)bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex] = Xen2KHandle.BuildCanvasBoxTree(Xen2KHandle.tokenize(localStorage.getItem("memfunc"+currentCanvasClassIndex.toString()+"_"+ currentCanvasFuncIndex.toString())));
+		currentCanvasFuncIndex = index2;
+		if (localStorage.getItem("memfunc"+currentCanvasClassIndex.toString()+"_"+ currentCanvasFuncIndex.toString()) !== null) bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex] = Xen2KHandle.BuildCanvasBoxTree(Xen2KHandle.tokenize(localStorage.getItem("memfunc"+currentCanvasClassIndex.toString()+"_"+ currentCanvasFuncIndex.toString())), currentCanvasFuncIndex);
+		for (var index in window.localStorage.getItem("memfuncComment"+index1.toString()+"_"+index2.toString()).split("?")) {
+			if (index === 0) continue;
+			for (var index3 in bareNodeList[index1][index2]) {
+				if (window.localStorage.getItem("memfuncComment"+index1.toString()+"_"+index2.toString()) !== null && window.localStorage.getItem("memfuncComment"+index1.toString()+"_"+index2.toString()).length >0 && window.localStorage.getItem("memfuncComment"+index1.toString()+"_"+index2.toString()).split("?")[index].split(",")[1] === index3.toString()) {
+					bareNodeList[index1][index2][index3].comment = window.localStorage.getItem("memfuncComment"+index1.toString()+"_"+index2.toString()).split("?")[index].split(",")[2];
+				}
+			}
+		}
 		constructorLoaded = false;
 		funcArray = [index1,index2];
 	}
 }
 
 function EditMemberVar (ev) {
-	Xen2KHandle.classmember[dataArray[0]][dataArray[1]] = ev.target.value;
-	refreshClassExplorer();
+	if (contentChanged === 0) {
+		var savemessagedialog = document.getElementById("savedialog");
+		savemessagedialog.showModal();
+	} else {
+		Xen2KHandle.classmember[dataArray[0]][dataArray[1]] = ev.target.value;
+		refreshClassExplorer();
+	}
 }
 
 function renderCanvas(){
 	document.getElementById("MainCanvas").width = document.getElementById("MainCanvas").width; // reset the canvas
 	if (currentCanvasClassIndex >=0 ) {
-		
 		if (constructorLoaded){
 			for (var elem of bareNodeList_constructor[currentCanvasClassIndex]) {
 				elem.DrawNode();
