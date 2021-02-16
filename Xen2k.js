@@ -53,6 +53,29 @@ function itoa(number) {
 }
 
 //class
+
+var MathHelper = {
+    // Get a value between two values
+    clamp: function (value, min, max) {
+
+        if (value < min) {
+            return min;
+        }
+        else if (value > max) {
+            return max;
+        }
+
+        return value;
+    },
+    // Get the linear interpolation between two value
+    lerp: function (value1, value2, amount) {
+        amount = amount < 0 ? 0 : amount;
+        amount = amount > 1 ? 1 : amount;
+        return value1 + (value2 - value1) * amount;
+    }
+
+};
+
 function BreakLoop(Exception){
     this.message = Exception;
     this.name = "Break";
@@ -97,12 +120,16 @@ function DropdownMenu (menulist){
 }
 
 var DrawableObjectList = [];
-function DrawableObject (a, b, type){
+function DrawableObject (parentobj, a, b, type){
 	this.a = a;
 	this.b = b;
 	this.type = type;
-	this.Draw = () => {
-		if (this.type === 0) {
+	this.parentObject = parentobj;
+	this.loopAnimation = false;
+	this.animationSequenceNumber = 0;
+	this.maxAnimationSequenceNumber = 0;
+	this.Draw = function () {
+		if (this.type === 0) { // rectangle
 			if (Xen2KHandle.console2Canvas && Xen2KHandle.currentCanvas !== null) {
 				var pos = a;
 				var size = b;
@@ -112,7 +139,7 @@ function DrawableObject (a, b, type){
 				Xen2KHandle.currentCanvas.fillStyle = "rgba(255, 255, 255,1)";
 				Xen2KHandle.currentCanvas.fill();
 			}
-		} else if (this.type === 1) {
+		} else if (this.type === 1) { // circle
 			if (Xen2KHandle.console2Canvas && Xen2KHandle.currentCanvas !== null) {
 				var pos = a;
 				var radius = b;
@@ -124,20 +151,105 @@ function DrawableObject (a, b, type){
 				Xen2KHandle.currentCanvas.strokeStyle = "rgba(255, 255, 255,1)";
 				Xen2KHandle.currentCanvas.stroke();
 			}
-		} else if (this.type === 2) {
+		} else if (this.type === 2) { // line
 			if (Xen2KHandle.console2Canvas && Xen2KHandle.currentCanvas !== null) {
-				var pos = a;
-				var pos2 = b;
+				if (this.parentObject !== null) {
+					var pos2 = b;
+					Xen2KHandle.currentCanvas.beginPath();
+					Xen2KHandle.currentCanvas.moveTo(parseInt(this.parentObject.b[0]), parseInt(this.parentObject.b[1]));
+					Xen2KHandle.currentCanvas.LineTo(parseInt(pos2[0]), parseInt(pos2[1]));
+					Xen2KHandle.currentCanvas.closePath();
+					Xen2KHandle.currentCanvas.fillStyle = "rgba(255, 255, 255,1)";
+					Xen2KHandle.currentCanvas.fill();
+				} else {
+					var pos = a;
+					var pos2 = b;
+					Xen2KHandle.currentCanvas.beginPath();
+					Xen2KHandle.currentCanvas.moveTo(parseInt(pos[0]), parseInt(pos[1]));
+					Xen2KHandle.currentCanvas.LineTo(parseInt(pos2[0]), parseInt(pos2[1]));
+					Xen2KHandle.currentCanvas.closePath();
+					Xen2KHandle.currentCanvas.fillStyle = "rgba(255, 255, 255,1)";
+					Xen2KHandle.currentCanvas.fill();
+				}
+			}
+		} else if (this.type === 3) { // text
+			if (Xen2KHandle.console2Canvas && Xen2KHandle.currentCanvas !== null) {
+				var targetText = a;
+				var pos = b;
 				Xen2KHandle.currentCanvas.beginPath();
-				Xen2KHandle.currentCanvas.moveTo(parseInt(pos[0]), parseInt(pos[1]));
-				Xen2KHandle.currentCanvas.LineTo(parseInt(pos2[0]), parseInt(pos2[1]));
+				Xen2KHandle.currentCanvas.font = "12px Arial, sans-serif";
+				Xen2KHandle.currentCanvas.textAlign = "center";
+				Xen2KHandle.currentCanvas.textBaseline = "alphabetic";
+				Xen2KHandle.currentCanvas.strokeText(targetText, parseInt(pos[0]), parseInt(pos[1]));
 				Xen2KHandle.currentCanvas.closePath();
-				Xen2KHandle.currentCanvas.fillStyle = "rgba(255, 255, 255,1)";
-				Xen2KHandle.currentCanvas.fill();
+			}
+		}
+		// no more Draw method addition to this part!
+	}
+	// rotate method
+	this.rotate = function (targetPoint, basePoint, angle) {
+		var movedPoint = [targetPoint[0] - basePoint[0], targetPoint[1] - basePoint[1]];
+		var rotatedPoint = [Math.cos(Math.PI / 180 * angle) *movedPoint[0] - Math.sin(Math.PI/180 * angle) * movedPoint[1], Math.sin(Math.PI/180 * angle) * movedPoint[0] + Math.cos(Math.PI / 180 * angle) *movedPoint[1]];
+		targetPoint = [basePoint[0] + rotatedPoint[0], basePoint[1] + rotatedPoint[1]];
+		return targetPoint;
+		
+	}
+}
+
+function StickMan (a, b) {
+	DrawableObject.call(null,null,null,-1);
+	this.position = a; // feet position
+	this.weight = b;
+	this.name = "";
+	this.parentobject = parentobj;
+	this.childnodeList = [];
+	this.animationSequenceNumber = 0;
+	this.maxAnimationSequenceNumber = 179;
+	this.loopAnimation = true;
+	this.walkingAnimationCommand = [];
+	// build skeletal tree: the head Object will be a neck~pelvis of stickman(body)
+	this.rootObject = new DrawableObject(this,[position[0], position[1]-60], [position[0], position[1]-40], 2);// body
+	this.rootObject.childnodeList.push(new DrawableObject(this.rootObject,[position[0], position[1]-60], [position[0], position[1]-40], 2)); // one arm
+	this.rootObject.childnodeList.push(new DrawableObject(this.rootObject,[position[0], position[1]-60], [position[0], position[1]-40], 2)); // other arm
+	this.rootObject.childnodeList.push(new DrawableObject(this.rootObject,[position[0], position[1]-80], 10, 1)); // head
+	this.rootObject.childnodeList.push(new DrawableObject(this.rootObject,[position[0], position[1]-40], [position[0], position[1] - 20], 2)); // one thigh
+	this.rootObject.childnodeList.push(new DrawableObject(this.rootObject[this.rootObject.childnodeList.length -1], [position[0], position[1] - 20], [position[0], position[1]],2));// one shin part
+	this.rootObject.childnodeList.push(new DrawableObject(this.rootObject,[position[0], position[1]-40], [position[0], position[1] - 20], 2)); // other thigh
+	this.rootObject.childnodeList.push(new DrawableObject(this.rootObject[this.rootObject.childnodeList.length -1], [position[0], position[1] - 20], [position[0], position[1]],2)); //other shin part
+	
+	// Draw overriding
+	this.Draw = function(){
+		this.rootObject.Draw();
+		for (var index in this.rootObject.childnodeList) {
+			this.rootObject.childnodeList[index].Draw();
+		}
+	}
+	this.Walk = function () {
+		if (this.animationSequenceNumber >= 45 && this.animationSequenceNumber < 135) {
+			this.walkingAnimationCommand = [-1, 1, 0, -1, 1, 1, 1];
+		} else {
+			this.walkingAnimationCommand = [1, -1, 0, 1, 1, -1, 1];
+		}
+		for (var delta in this.walkingAnimationCommand){
+			if (this.rootObject.childnodeList[delta].type === 2)this.RecursiveWalkingAnimationProcess(this.rootObject.childenodeList[delta].parentObject, this.rootObject.childnodeList[delta], this.walkingAnimationCommand[delta]);
+		}
+		if (this.animationSequenceNumber < this.maxAnimationSequenceNumber)this.animationSequenceNumber += 1;
+		else {
+			if (loopAnimation) this.animationSequenceNumber = 0;
+		}
+	}
+	this.RecursiveWalkingAnimationProcess = function (parentobj, childobj, angle) {
+		childobj.b = childobj.rotate(parseInt(childobj.b), parseInt(parentobj.b), angle);
+		if (childobj.childnodeList.length > 0) {
+			for (var target of childobj.childnodeList) {
+				if (target.type === 2)this.RecursiveWalkingAnimationProcess(parentobj, target, angle);
 			}
 		}
 	}
+	
 }
+StickMan.prototype = Object.create(DrawableObject.prototype);
+StickMan.prototype.constructor = StickMan;
 
 function CanvasBox (nodename, numstr) {
 	this.position = [0,0];
@@ -539,17 +651,27 @@ function Xen2K() {
 	this.GETMEMBER = (a,b) => {
 		return this.classmember[this.arg(a,false)][this.arg(b, false)];
 	}
+	this.SETMEMBER = function (a,b) {
+		a = this.arg(a, false);
+		b = this.arg(b, false);
+		a = b;
+		return 0;
+	}
 	this.DRAWRECT = (a, b) => {
 		// a is left top position, b is size
-		DrawableObjectList.push(new DrawableObject(this.arg(a,false), this.arg(b,false), 0));
+		DrawableObjectList.push( new DrawableObject(null,this.arg(a,false), this.arg(b,false), 0));
 	}
 	this.DRAWCIRCLE = (a, b) => {
 		// a is center position, b is radius
-		DrawableObjectList.push(new DrawableObject(this.arg(a,false), this.arg(b,false), 1));
+		DrawableObjectList.push( new DrawableObject(null,this.arg(a,false), this.arg(b,false), 1));
 	}
 	this.DRAWLINE = (a, b) => {
 		// both a and b are position(start, end)
-		DrawableObjectList.push(new DrawableObject(this.arg(a,false), this.arg(b,false), 2));
+		DrawableObjectList.push( new DrawableObject(null,this.arg(a,false), this.arg(b,false), 2));
+	}
+	this.DRAWTEXT = function (a, b) {
+		// both a and b are position(start, end)
+		DrawableObjectList.push( new DrawableObject(null,this.arg(a,false), this.arg(b,false), 3));
 	}
 	this.SETTIMER = (a, b) => {
 		// a is content, b is timeout value
@@ -564,11 +686,14 @@ function Xen2K() {
 		if (b !== 0 ) return this.set(this.arg(a, false).reverse().join(''));
 		else return this.set(this.arg(a, false).join(''))
 	}
-	
+	this.SPAWNSTICKMAN = function (a,b) {
+		DrawableObjectList.push( new StickMan(this.arg(a,false), this.arg(b,false)));
+	}
 	this.command = [
 		['1001' , this.DEFCANVAS], // "830": initialize Canvas, arg0: list of width and height; arg1: 2d(0) or webgl(1)
 		['1008' , this.VARUSE], // "837": get arg0[arg1]
 		['1015' , this.DEFVECTOR],
+		['1029', this.SETMEMBER],
 		['1036', this.CALLMEMBER],
 		['1043', this.GETMEMBER],
 		['1050', this.DRAWRECT], 
@@ -577,6 +702,8 @@ function Xen2K() {
 		['1071', this.SETTIMER], 
 		['1078', this.DEFCALLBACK],
 		['1085', this.LIST2STR],
+		['1092', this.DRAWTEXT],
+		['1099', this.SPAWNSTICKMAN],
 		['1561' , this.BREAK],// "119 ": throw error in Xen2K
 		['1568' , this.DIV], // "11 6"
 		['1638' , this.ADD], // "125 "
@@ -1280,8 +1407,12 @@ function refreshClassExplorer () {
 			Xen2KHandle.construction[index0] = Xen2KHandle.tokenize(window.localStorage.getItem("constructor"+index0.toString())); // constructor;
 			Xen2KHandle.classmember[index0] = (window.localStorage.getItem("memvar"+index0.toString())).split(",");
 			//member function saving
-			for (var index1 in Xen2KHandle.classFunction[index0]){
-				Xen2KHandle.classFunction[index0][index1] = Xen2KHandle.tokenize(window.localStorage.getItem("memfunc"+index0.toString()+"_"+index1.toString()));
+			if (Xen2KHandle.classFunction[index0].length >0){
+				for (var index1 in Xen2KHandle.classFunction[index0]){
+					if (Xen2KHandle.classFunction[index0][index1].length >0){
+						Xen2KHandle.classFunction[index0][index1] =  Xen2KHandle.tokenize(window.localStorage.getItem("memfunc"+index0.toString()+"_"+index1.toString()));
+					}
+				}
 			}
 		}
 	}
@@ -1342,13 +1473,13 @@ function addClassToClassExplorer (classindex) { // parameter: index of Class
 	memberVarModifyButtons.style.display = "table-cell";
 	var memVarAdd = document.createElement("button");
 	memVarAdd.onclick = createMemVar;
-	memVarAdd.value = classindex;
+	memVarAdd.value = classindex.toString();
 	memVarAdd.innerText = "변수 생성";
 	memberVarModifyButtons.appendChild(memVarAdd);
 	var memVarDel = document.createElement("button");
 	memVarDel.onclick = deleteMemVar;
 	memVarDel.innerText = "변수 제거";
-	memVarDel.value = classindex;
+	memVarDel.value = classindex.toString();
 	memberVarModifyButtons.appendChild(memVarDel);
 	memberVarModifyButtonGroup.appendChild(memberVarModifyButtons);
 	memberVarRowgroup.appendChild(memberVarModifyButtonGroup);
@@ -1399,12 +1530,12 @@ function addClassToClassExplorer (classindex) { // parameter: index of Class
 	var memFuncAdd = document.createElement("button");
 	memFuncAdd.onclick = createMemFunc;
 	memFuncAdd.innerText = "함수 생성";
-	memFuncAdd.value = classindex.toString() + "," + Xen2KHandle.classFunction[classindex].length.toString();
+	memFuncAdd.value = classindex.toString();
 	memberFuncModifyButtons.appendChild(memFuncAdd);
 	var memFuncDel = document.createElement("button");
 	memFuncDel.onclick = deleteMemFunc;
 	memFuncDel.innerText = "함수 제거";
-	memFuncDel.value = classindex.toString() + "," + Xen2KHandle.classFunction[classindex].length.toString();
+	memFuncDel.value = classindex.toString();
 	memberFuncModifyButtons.appendChild(memFuncDel);
 	memberFuncModifyButtonGroup.appendChild(memberFuncModifyButtons);
 	memberFuncRowgroup.appendChild(memberFuncModifyButtonGroup);
@@ -1440,26 +1571,30 @@ function loadConstructor(ev) {
 }
 
 function createMemVar(ev) {
-	Xen2KHandle.classmember[ev.target.getAttribute("value")].push("새 변수");
+	Xen2KHandle.classmember[parseInt(ev.target.getAttribute("value"))].push("새 변수");
+	localStorage.setItem("memvar"+ev.target.getAttribute("value"), Xen2KHandle.classmember[parseInt(ev.target.getAttribute("value"))]);
 	refreshClassExplorer();
 }
 function deleteMemVar(ev) {
 	if (Xen2KHandle.classmember.length > 0){
-		Xen2KHandle.classmember[ev.target.getAttribute("value")].pop();
+		Xen2KHandle.classmember[parseInt(ev.target.getAttribute("value"))].pop();
+		localStorage.setItem("memvar"+ev.target.getAttribute("value"), Xen2KHandle.classmember[parseInt(ev.target.getAttribute("value"))]);
 	}
 	refreshClassExplorer();
 }
 function createMemFunc(ev) {
-	var indeces = ev.target.getAttribute("value").split(",");
-	Xen2KHandle.classFunction[parseInt(indeces[0])].push([]);
-	bareNodeList[parseInt(indeces[0])].push([]);
+	var indeces = ev.target.getAttribute("value");
+	Xen2KHandle.classFunction[parseInt(indeces)].push([]);
+	bareNodeList[parseInt(indeces)].push([]);
+	localStorage.setItem("memfunc"+indeces.toString()+"_"+ (Xen2KHandle.classFunction[parseInt(indeces)].length-1).toString(), StringifyBareNodeList(bareNodeList[indeces][Xen2KHandle.classFunction[parseInt(indeces)]]));
 	refreshClassExplorer();
 }
 function deleteMemFunc(ev) {
-	var indeces = ev.target.getAttribute("value").split(",");
-	if (bareNodeList.length > 0 &&bareNodeList[indeces[0]].length > 0 ) {
-		bareNodeList[indeces[0]].pop();
-		Xen2KHandle.classFunction[indeces[0]].pop();
+	var indeces = ev.target.getAttribute("value");
+	if (bareNodeList.length > 0 &&bareNodeList[parseInt(indeces)].length > 0 ) {
+		localStorage.removeItem("memfunc"+indeces.toString()+"_"+ (Xen2KHandle.classFunction[parseInt(indeces)].length-1).toString());
+		bareNodeList[parseInt(indeces)].pop();
+		Xen2KHandle.classFunction[parseInt(indeces)].pop();
 	}
 	refreshClassExplorer();	
 }
@@ -1502,6 +1637,7 @@ function EditMemberVar (ev) {
 		savemessagedialog.showModal();
 	} else {
 		Xen2KHandle.classmember[dataArray[0]][dataArray[1]] = ev.target.value;
+		localStorage.setItem("memvar"+dataArray[0].toString(), Xen2KHandle.classmember[dataArray[0]]);
 		refreshClassExplorer();
 	}
 }
@@ -1552,18 +1688,22 @@ var FunctionInfoDefault = [
 		['1015', "DEFVECTOR"],
 		['1036', "CALLMEMBER"],
 		['1043', "GETMEMBER"],
+		['1029', 'SETMEMBER'],
 		['1050', "DRAWRECT"], 
 		['1057', "DRAWCIRCLE"], 
-		['1064', "DRAWLINE"], 
+		['1064', "DRAWLINE"],
+		['1092', "DRAWTEXT"],
 		['1071', "SETTIMER"], 
 		['1078', "DEFCALLBACK"],
-		['1085', "LIST2STR"]
+		['1085', "LIST2STR"],
+		['1099', 'SPAWNSTICKMAN']
 		];
 var DropMenuHandle = new DropdownMenu(FunctionInfoDefault);
 
 var FunctionInfoElem = new Array(
         ['1001', "DEFCANVAS"], 
 		['1015', "DEFVECTOR"],
+		['1029', 'SETMEMBER'],
 		['1036', "CALLMEMBER"],
 		['1043', "GETMEMBER"],		
 		['1050', "DRAWRECT"], 
@@ -1571,7 +1711,10 @@ var FunctionInfoElem = new Array(
 		['1064', "DRAWLINE"], 
 		['1071', "SETTIMER"], 
 		['1078', "DEFCALLBACK"],
-		['1085', "LIST2STR"]);
+		['1085', "LIST2STR"],
+		['1092', "DRAWTEXT"],
+		['1099', 'SPAWNSTICKMAN']
+		);
 
 FunctionInfoElem.push(['1008', 'VARUSE']);
 FunctionInfoElem.push(['1561', 'BREAK']);
