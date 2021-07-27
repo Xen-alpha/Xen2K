@@ -1,15 +1,117 @@
 //Xen2K UI
 
-/**
- * Xen2K Javascript Converter
-**/
-const VERSION = "PSI 0.1.2";
+// UI Objects 
+// Dropdown
+function DropdownMenu (menulist){
+	this.position = [0,0];
+	this.size = [120, 160];
+	this.activated = false;
+	this.MenuList = menulist; // contain [[a, name], [b, name2], ...]
+	this.sightpoint = 0; // determine the visible range of MenuList (sightpoint~sightpoint + 10)
+	this.DrawMenu = (ctx) => {
+		ctx.beginPath();
+		ctx.rect(this.position[0], this.position[1], this.size[0], this.size[1]);
+		ctx.fillStyle = "rgba(120, 120, 120, 1)";
+		ctx.fill();
+		
+		ctx.closePath();
+		for (var index in this.MenuList){
+			if (index < this.sightpoint || index >= this.sightpoint+10) continue;
+			ctx.beginPath();
+			ctx.font = "10px Arial, sans-serif";
+			ctx.strokeStyle = "rgba(20, 20, 20, 1)";
+			ctx.textAlign = "left";
+			ctx.textBaseline = "top";
+			ctx.strokeText(this.MenuList[index][1], this.position[0], 4+this.position[1]+(index - this.sightpoint)*16);
+			ctx.closePath();
+		}
+		// draw the scroll position
+		if (this.MenuList.length > 10){
+			ctx.beginPath();
+			ctx.rect(this.position[0] + this.size[0] - 5, this.position[1] + this.sightpoint * 16 * 10 / this.MenuList.length, 5, 160* 10 / this.MenuList.length);
+			ctx.fillStyle = "rgba(80,80,80,1)";
+			ctx.fill();
+			ctx.closePath();
+		}
+	}
+}
 
-var contentChanged = 1;
+var bareNodeList = [];
+// Canvas Node
+function CanvasBox (position, nodename, numstr) {
+	this.position = position;
+	this.size = [100, 50];
+	this.nodename = nodename;
+	this.numstr = numstr;
+	this.value = "";
+	this.dragging = false;
+	this.leftBranch = null;
+	this.rightBranch = null;
+	this.parentNode = null;
+	this.SetPosition = function(x, y) {
+		this.position = [x-50, y-25];
+	}
+	this.DrawNode = function(){
+		var ctx = document.getElementById("MainCanvas").getContext("2d");
+		ctx.beginPath();
+		ctx.rect(this.position[0], this.position[1], this.size[0], this.size[1]);
+		ctx.fillStyle = "rgba(200, 200, 24, 1)";
+		ctx.fill();
+		ctx.font = "10px Arial, sans-serif";
+		ctx.textAlign = "center";
+		ctx.textBaseline = "middle";
+		ctx.strokeText(this.nodename,this.position[0]+50, this.position[1]+25);
+		ctx.closePath();
+		if(this.numstr !== '*' && this.numstr !== '_') {
+			ctx.beginPath();
+			ctx.rect(this.position[0], this.position[1]+ this.size[1] - 10, this.size[0]/2, 10);
+			ctx.fillStyle = "rgba(200, 20, 24, 1)";
+			ctx.fill();
+			ctx.closePath();
+			ctx.beginPath();
+			ctx.rect(this.position[0]+ this.size[0]/2, this.position[1]+ this.size[1] - 10, this.size[0]/2, 10);
+			ctx.fillStyle = "rgba(200, 20, 240, 1)";
+			ctx.fill();
+			ctx.closePath();
+		}
+		if (this.leftBranch !== null) {
+			ctx.beginPath();
+			ctx.moveTo(this.position[0] + this.size[0] / 4, this.position[1]+ this.size[1]);
+			ctx.lineTo(this.leftBranch.position[0] + this.leftBranch.size[0] / 2, this.leftBranch.position[1]);
+			ctx.closePath();
+			ctx.strokeStyle = "black";
+			ctx.lineWidth = 1.0;
+			ctx.stroke();
+		}
+		if (this.rightBranch !== null) {
+			ctx.beginPath();
+			ctx.moveTo(this.position[0] + 3 * this.size[0] / 4, this.position[1]+ this.size[1]);
+			ctx.lineTo(this.rightBranch.position[0] + this.rightBranch.size[0] / 2, this.rightBranch.position[1]);
+			ctx.closePath();
+			ctx.strokeStyle = "black";
+			ctx.lineWidth = 1.0;
+			ctx.stroke();
+		}
+		if (this.value.length >0) {
+			ctx.beginPath();
+			ctx.rect(this.position[0]+this.size[0], this.position[1], 12 , this.size[1]);
+			ctx.fillStyle = "rgba(255, 255, 255, 1)";
+			ctx.fill();
+			ctx.closePath();
+			ctx.font = "12px Arial, sans-serif";
+			ctx.textAlign = "left";
+			ctx.textBaseline = "alphabetic";
+			ctx.strokeText(this.value,this.position[0] +this.size[0], this.position[1]+25);
+			
+		}
+	}
+}
+
+var contentChanged = 0;
 // callback functions
 function onChangeFile(event) {
 	document.getElementById("ide_class").innerHTML = "변수 수정<input id=\"varEdit\" name=\"ide_VarEdit\" onchange=\"EditMemberVar(event)\">";
-	document.getElementById("ide_class").innerHTML += "<button onclick=\"createClass(event)\">새 클래스 만들기</button>"
+	document.getElementById("ide_class").innerHTML += "<button onclick=\"createFunction(event)\">새 함수 만들기</button>"
 	var fileText;
 	FreshPageLoaded = false;
 	var file = event.target.files[0];
@@ -17,13 +119,14 @@ function onChangeFile(event) {
 	reader.onload = function(e) {
 	  fileText = e.target.result;
 	  contentChanged = 1;
-	  bareNodeList_constructor = [];
 	  bareNodeList = [];
-	  constructorLoaded = 1;
-	  Xen2KHandle.read(fileText);
 	  PostLoadProject();
 	};
 	reader.readAsText(file);
+}
+
+function PostLoadProject () {
+	return;
 }
 
 function dragstart_handler(ev) {
@@ -55,135 +158,72 @@ var deleteType = 0;
 function canvas_mousedown_handler(e) {
 	e.preventDefault();
 	if (e.button === 0) {
-		if (!constructorLoaded) {
-			if (currentCanvasClassIndex === -1 || currentCanvasFuncIndex === -1) return;
-			var targetNode = null;
-			for (var node of bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex]){
-				if (e.offsetX >= node.position[0] && e.offsetX <= node.position[0] + node.size[0] && e.offsetY >= node.position[1] && e.offsetY <= node.position[1]+node.size[1] - 10) {
-					targetNode = node;
-				}
-				else if (e.offsetX >= node.position[0] && e.offsetX < node.position[0] + node.size[0]/2 && e.offsetY >= node.position[1]+node.size[1] - 10 && e.offsetY <= node.position[1]+node.size[1]) {
-					targetNode = node;
-					if(node.numstr !== '*' && node.numstr !== '_') {
-						BranchParent = node;
-						BranchPoint = 1;
-					}
-				}
-				else if (e.offsetX >= node.position[0] + node.size[0]/2 && e.offsetX < node.position[0] + node.size[0] && e.offsetY >= node.position[1]+node.size[1] - 10 && e.offsetY <= node.position[1]+node.size[1]) {
-					targetNode = node;
-					if(node.numstr !== '*' && node.numstr !== '_') {
-						BranchParent = node;
-						BranchPoint = 2;
-					}
+		if (currentCanvasClassIndex === -1 || currentCanvasFuncIndex === -1) return;
+		var targetNode = null;
+		for (var node of bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex]){
+			if (e.offsetX >= node.position[0] && e.offsetX <= node.position[0] + node.size[0] && e.offsetY >= node.position[1] && e.offsetY <= node.position[1]+node.size[1] - 10) {
+				targetNode = node;
+			}
+			else if (e.offsetX >= node.position[0] && e.offsetX < node.position[0] + node.size[0]/2 && e.offsetY >= node.position[1]+node.size[1] - 10 && e.offsetY <= node.position[1]+node.size[1]) {
+				targetNode = node;
+				if(node.numstr !== '*' && node.numstr !== '_') {
+					BranchParent = node;
+					BranchPoint = 1;
 				}
 			}
-			if (targetNode !== null && targetNode.constructor === CanvasBox && BranchPoint !== 0){
-				//linking branch started
-				if (BranchPoint === 1)
-					DrawingLine[0] = [targetNode.position[0] + targetNode.size[0] / 4, targetNode.position[1]+ targetNode.size[1]];
-				else
-					DrawingLine[0] = [targetNode.position[0] + 3* targetNode.size[0] / 4, targetNode.position[1]+ targetNode.size[1]];
-				DrawingLine[1] = [e.offsetX, e.offsetY];
-			}
-			else if (targetNode !== null && targetNode.constructor === CanvasBox){
-				//bootstrap the clicked node
-				targetNode.SetPosition(e.offsetX, e.offsetY);
-				targetNode.dragging = true;
-				focusedIndex = bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex].indexOf(targetNode);
-				deleteType = 0;
-			} else if (DropMenuHandle.activated && e.offsetX >= DropMenuHandle.position[0] && e.offsetX < DropMenuHandle.position[0] + DropMenuHandle.size[0] && e.offsetY >= DropMenuHandle.position[1] && e.offsetY < DropMenuHandle.position[1] + DropMenuHandle.size[1] ) {
-				// click element inside dropdown menu
-				var clickpointY = Math.floor((e.offsetY- DropMenuHandle.position[1] ) / 16);
-				bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex].push(new CanvasBox(DropMenuHandle.MenuList[clickpointY + DropMenuHandle.sightpoint][1] , itoa(parseInt(DropMenuHandle.MenuList[clickpointY + DropMenuHandle.sightpoint][0])) ));
-				bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex].length-1].index = bareNodeList.length-1;
-				bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex].length-1].SetPosition(e.offsetX, e.offsetY);
-				contentChanged = 0;
-			}
-			else {
-				// moving background
-				isDragging = true;
-			}
-			
-			DropMenuHandle.activated = false;
-		} else {
-			if (currentCanvasClassIndex === -1 ) return;
-			var targetNode = null;
-			
-			for (var node of bareNodeList_constructor[currentCanvasClassIndex]){
-				if (e.offsetX >= node.position[0] && e.offsetX <= node.position[0] + node.size[0] && e.offsetY >= node.position[1] && e.offsetY <= node.position[1]+node.size[1] - 10) {
-					targetNode = node;
-				}
-				else if (e.offsetX >= node.position[0] && e.offsetX < node.position[0] + node.size[0]/2 && e.offsetY >= node.position[1]+node.size[1] - 10 && e.offsetY <= node.position[1]+node.size[1]) {
-					targetNode = node;
-					if(node.numstr !== '*' && node.numstr !== '_') {
-						BranchParent = node;
-						BranchPoint = 1;
-					}
-				}
-				else if (e.offsetX >= node.position[0] + node.size[0]/2 && e.offsetX < node.position[0] + node.size[0] && e.offsetY >= node.position[1]+node.size[1] - 10 && e.offsetY <= node.position[1]+node.size[1]) {
-					targetNode = node;
-					if(node.numstr !== '*' && node.numstr !== '_') {
-						BranchParent = node;
-						BranchPoint = 2;
-					}
+			else if (e.offsetX >= node.position[0] + node.size[0]/2 && e.offsetX < node.position[0] + node.size[0] && e.offsetY >= node.position[1]+node.size[1] - 10 && e.offsetY <= node.position[1]+node.size[1]) {
+				targetNode = node;
+				if(node.numstr !== '*' && node.numstr !== '_') {
+					BranchParent = node;
+					BranchPoint = 2;
 				}
 			}
-			if (targetNode !== null && targetNode.constructor === CanvasBox && BranchPoint !== 0){
-				//linking branch started
-				if (BranchPoint === 1)
-					DrawingLine[0] = [targetNode.position[0] + targetNode.size[0] / 4, targetNode.position[1]+ targetNode.size[1]];
-				else
-					DrawingLine[0] = [targetNode.position[0] + 3* targetNode.size[0] / 4, targetNode.position[1]+ targetNode.size[1]];
-				DrawingLine[1] = [e.offsetX, e.offsetY];
-			}
-			else if (targetNode !== null && targetNode.constructor === CanvasBox){
-				//bootstrap the clicked node
-				targetNode.SetPosition(e.offsetX, e.offsetY);
-				targetNode.dragging = true;
-				focusedIndex = bareNodeList_constructor[currentCanvasClassIndex].indexOf(targetNode);
-				deleteType = 0;
-			} else if (DropMenuHandle.activated && e.offsetX >= DropMenuHandle.position[0] && e.offsetX < DropMenuHandle.position[0] + DropMenuHandle.size[0] && e.offsetY >= DropMenuHandle.position[1] && e.offsetY < DropMenuHandle.position[1] + DropMenuHandle.size[1] ) {
-				// click element inside dropdown menu
-				var clickpointY = Math.floor((e.offsetY- DropMenuHandle.position[1] ) / 16);
-				bareNodeList_constructor[currentCanvasClassIndex].push(new CanvasBox(DropMenuHandle.MenuList[clickpointY + DropMenuHandle.sightpoint][1] ,itoa(parseInt(DropMenuHandle.MenuList[clickpointY + DropMenuHandle.sightpoint][0]))));
-				bareNodeList_constructor[currentCanvasClassIndex][bareNodeList_constructor[currentCanvasClassIndex].length-1].index = bareNodeList_constructor.length-1;
-				bareNodeList_constructor[currentCanvasClassIndex][bareNodeList_constructor[currentCanvasClassIndex].length-1].SetPosition(e.offsetX, e.offsetY);
-				contentChanged = 0;
-			}
-			else {
-				// moving background
-				isDragging = true;
-			}
-			typingComment = null;
-			DropMenuHandle.activated = false;
 		}
+		if (targetNode !== null && targetNode.constructor === CanvasBox && BranchPoint !== 0){
+			//linking branch started
+			if (BranchPoint === 1)
+				DrawingLine[0] = [targetNode.position[0] + targetNode.size[0] / 4, targetNode.position[1]+ targetNode.size[1]];
+			else
+				DrawingLine[0] = [targetNode.position[0] + 3* targetNode.size[0] / 4, targetNode.position[1]+ targetNode.size[1]];
+			DrawingLine[1] = [e.offsetX, e.offsetY];
+		}
+		else if (targetNode !== null && targetNode.constructor === CanvasBox){
+			//bootstrap the clicked node
+			targetNode.SetPosition(e.offsetX, e.offsetY);
+			targetNode.dragging = true;
+			focusedIndex = bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex].indexOf(targetNode);
+			deleteType = 0;
+		} else if (DropMenuHandle.activated && e.offsetX >= DropMenuHandle.position[0] && e.offsetX < DropMenuHandle.position[0] + DropMenuHandle.size[0] && e.offsetY >= DropMenuHandle.position[1] && e.offsetY < DropMenuHandle.position[1] + DropMenuHandle.size[1] ) {
+			// click element inside dropdown menu
+			var clickpointY = Math.floor((e.offsetY- DropMenuHandle.position[1] ) / 16);
+			bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex].push(new CanvasBox(DropMenuHandle.MenuList[clickpointY + DropMenuHandle.sightpoint][1] , itoa(parseInt(DropMenuHandle.MenuList[clickpointY + DropMenuHandle.sightpoint][0])) ));
+			bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex].length-1].index = bareNodeList.length-1;
+			bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex].length-1].SetPosition(e.offsetX, e.offsetY);
+			contentChanged = 0;
+		}
+		else {
+			// moving background
+			isDragging = true;
+		}
+		
+		DropMenuHandle.activated = false;
 	} else if (e.button === 2) {
 		DropMenuHandle.activated = false;
 		if (rightbuttonDraggingTimer !== null) {
 			clearTimeout(rightbuttonDraggingTimer);
 			rightbuttonDraggingTimer = null;
 			var targetNode = null;
-			if (constructorLoaded) {
-				if (currentCanvasClassIndex <0) return;
-				for (var node of bareNodeList_constructor[currentCanvasClassIndex]){
-					if (e.offsetX >= node.position[0] && e.offsetX <= node.position[0] + node.size[0] && e.offsetY >= node.position[1] && e.offsetY <= node.position[1]+node.size[1] - 10) {
-						targetNode = node;
-					}
-				}
-				if (targetNode !== null) {
-					typingComment = targetNode;
-				}
-			} else {
-				if (currentCanvasClassIndex <0 || currentCanvasFuncIndex <0) return;
-				for (var node of bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex]){
-					if (e.offsetX >= node.position[0] && e.offsetX <= node.position[0] + node.size[0] && e.offsetY >= node.position[1] && e.offsetY <= node.position[1]+node.size[1] - 10) {
-						targetNode = node;
-					}
-				}
-				if (targetNode !== null) {
-					typingComment = targetNode;
+			
+			if (currentCanvasClassIndex <0 || currentCanvasFuncIndex <0) return;
+			for (var node of bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex]){
+				if (e.offsetX >= node.position[0] && e.offsetX <= node.position[0] + node.size[0] && e.offsetY >= node.position[1] && e.offsetY <= node.position[1]+node.size[1] - 10) {
+					targetNode = node;
 				}
 			}
+			if (targetNode !== null) {
+				typingComment = targetNode;
+			}
+			
 		} else {
 			rightbuttonDraggingTimer = setTimeout(function (x, y) {
 				DropMenuHandle.position = [x, y];
@@ -194,37 +234,18 @@ function canvas_mousedown_handler(e) {
 }
 function canvas_mousemove_handler(e){
 	if (focusedIndex>=0){
-		if (!constructorLoaded) {
-			if (currentCanvasClassIndex >=0 && currentCanvasFuncIndex >= 0) {
-				if (bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex].length > 0 && bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].dragging) {
-					bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].SetPosition(e.offsetX, e.offsetY);
-					return;
-				}
-			}
-		} else {
-			if (currentCanvasClassIndex >=0 ) {
-				if (bareNodeList_constructor[currentCanvasClassIndex].length > 0 && bareNodeList_constructor[currentCanvasClassIndex][focusedIndex].dragging) {
-					bareNodeList_constructor[currentCanvasClassIndex][focusedIndex].SetPosition(e.offsetX, e.offsetY);
-					return;
-				}
+		if (currentCanvasClassIndex >=0 && currentCanvasFuncIndex >= 0) {
+			if (bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex].length > 0 && bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].dragging) {
+				bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].SetPosition(e.offsetX, e.offsetY);
+				return;
 			}
 		}
-		
 	}
 	if (isDragging){
-		if (!constructorLoaded) {
-			if (currentCanvasClassIndex >=0 && currentCanvasFuncIndex >= 0) {
-				for (var node of bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex]) {
-					node.position[0] += e.movementX;
-					node.position[1] += e.movementY;
-				}
-			}
-		} else {
-			if (currentCanvasClassIndex >=0 ) {
-				for (var node of bareNodeList_constructor[currentCanvasClassIndex]) {
-					node.position[0] += e.movementX;
-					node.position[1] += e.movementY;
-				}
+		if (currentCanvasClassIndex >=0 && currentCanvasFuncIndex >= 0) {
+			for (var node of bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex]) {
+				node.position[0] += e.movementX;
+				node.position[1] += e.movementY;
 			}
 		}
 		return;
@@ -246,77 +267,39 @@ function canvas_mouseup_handler(e){
 		}
 		var targetNode = null;
 		if (BranchPoint !== 0){
-			if (!constructorLoaded) {
-				if (currentCanvasClassIndex === -1 || currentCanvasFuncIndex === -1) return;
-				for (var node of bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex]){
-					if ( e.offsetX >= node.position[0] && e.offsetX <= node.position[0] + node.size[0] && e.offsetY >= node.position[1] && e.offsetY <= node.position[1]+node.size[1] - 10){
-						var parentindex = bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex].indexOf(BranchParent);
-						if (BranchParent === node) break; // no self connect
-						// No linking to root node
-						var cancelLink = false;
-						for (targetNode = node; targetNode.parentNode !== null; targetNode = targetNode.parentNode) {
-							if (targetNode.parentNode === null) cancelLink = true;
-						}
-						if (cancelLink) break;
-						// no double-linking
-						if (node.parentNode !== null) break;
-						// linking branch
-						
-						if (BranchPoint === 1) {
-							if (bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][parentindex].leftBranch === null){
-								bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][parentindex].leftBranch = node;
-							} else {
-								bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][parentindex].leftBranch.parentNode = null;
-								bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][parentindex].leftBranch = node;
-							}
-						}
-						else {
-							if (bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][parentindex].rightBranch === null){
-								bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][parentindex].rightBranch = node;
-							} else {
-								bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][parentindex].rightBranch.parentNode = null;
-								bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][parentindex].rightBranch = node;
-							}
-						}
-						node.parentNode = bareNodeList[parentindex];
-						break;
+			if (currentCanvasClassIndex === -1 || currentCanvasFuncIndex === -1) return;
+			for (var node of bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex]){
+				if ( e.offsetX >= node.position[0] && e.offsetX <= node.position[0] + node.size[0] && e.offsetY >= node.position[1] && e.offsetY <= node.position[1]+node.size[1] - 10){
+					var parentindex = bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex].indexOf(BranchParent);
+					if (BranchParent === node) break; // no self connect
+					// No linking to root node
+					var cancelLink = false;
+					for (targetNode = node; targetNode.parentNode !== null; targetNode = targetNode.parentNode) {
+						if (targetNode.parentNode === null) cancelLink = true;
 					}
-				}
-			} else {
-				if (currentCanvasClassIndex === -1 ) return;
-				for (var node of bareNodeList_constructor[currentCanvasClassIndex]){
-					if ( e.offsetX >= node.position[0] && e.offsetX <= node.position[0] + node.size[0] && e.offsetY >= node.position[1] && e.offsetY <= node.position[1]+node.size[1] - 10){
-						var parentindex = bareNodeList_constructor[currentCanvasClassIndex].indexOf(BranchParent);
-						if (BranchParent === node) break; // no self connect
-						// No linking to root node
-						var cancelLink = false;
-						for (targetNode = node; targetNode.parentNode !== null; targetNode = targetNode.parentNode) {
-							if (targetNode.parentNode === null) cancelLink = true;
+					if (cancelLink) break;
+					// no double-linking
+					if (node.parentNode !== null) break;
+					// linking branch
+					
+					if (BranchPoint === 1) {
+						if (bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][parentindex].leftBranch === null){
+							bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][parentindex].leftBranch = node;
+						} else {
+							bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][parentindex].leftBranch.parentNode = null;
+							bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][parentindex].leftBranch = node;
 						}
-						if (cancelLink) break;
-						// no double-linking
-						if (node.parentNode !== null) break;
-						// linking branch
-						
-						if (BranchPoint === 1) {
-							if (bareNodeList_constructor[currentCanvasClassIndex][parentindex].leftBranch === null){
-								bareNodeList_constructor[currentCanvasClassIndex][parentindex].leftBranch = node;
-							} else {
-								bareNodeList_constructor[currentCanvasClassIndex][parentindex].leftBranch.parentNode = null;
-								bareNodeList_constructor[currentCanvasClassIndex][parentindex].leftBranch = node;
-							}
-						}
-						else {
-							if (bareNodeList_constructor[currentCanvasClassIndex][parentindex].rightBranch === null){
-								bareNodeList_constructor[currentCanvasClassIndex][parentindex].rightBranch = node;
-							} else {
-								bareNodeList_constructor[currentCanvasClassIndex][parentindex].rightBranch.parentNode = null;
-								bareNodeList_constructor[currentCanvasClassIndex][parentindex].rightBranch = node;
-							}
-						}
-						node.parentNode = bareNodeList_constructor[currentCanvasClassIndex][parentindex];
-						break;
 					}
+					else {
+						if (bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][parentindex].rightBranch === null){
+							bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][parentindex].rightBranch = node;
+						} else {
+							bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][parentindex].rightBranch.parentNode = null;
+							bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][parentindex].rightBranch = node;
+						}
+					}
+					node.parentNode = bareNodeList[parentindex];
+					break;
 				}
 			}
 			contentChanged = 0;
@@ -344,44 +327,24 @@ var typingComment = null;
 
 function canvas_keydown_handler(e){
 	if (e.key === "Delete" && focusedIndex !== -1 && typingComment === null){
-		if (constructorLoaded) {
-			if (  bareNodeList_constructor[currentCanvasClassIndex].length > 0){ // delete node
-				if (bareNodeList_constructor[currentCanvasClassIndex][focusedIndex].leftBranch !== null){
-					bareNodeList_constructor[currentCanvasClassIndex][focusedIndex].leftBranch.parentNode = null;
-				}
-				if (bareNodeList_constructor[currentCanvasClassIndex][focusedIndex].rightBranch !== null){
-					bareNodeList_constructor[currentCanvasClassIndex][focusedIndex].rightBranch.parentNode = null;
-				}
-				if (bareNodeList_constructor[currentCanvasClassIndex][focusedIndex].parentNode !== null){
-					if (bareNodeList_constructor[currentCanvasClassIndex][focusedIndex].parentNode.leftBranch === bareNodeList_constructor[currentCanvasClassIndex][focusedIndex]){
-						bareNodeList_constructor[currentCanvasClassIndex][focusedIndex].parentNode.leftBranch = null;
-					}
-					else if (bareNodeList_constructor[currentCanvasClassIndex][focusedIndex].parentNode.rightBranch === bareNodeList_constructor[currentCanvasClassIndex][focusedIndex]){
-						bareNodeList_constructor[currentCanvasClassIndex][focusedIndex].parentNode.rightBranch = null;
-					}
-				}
-				bareNodeList_constructor[currentCanvasClassIndex].splice(focusedIndex, 1);
-				focusedIndex = -1;
-			} 
-		} else {
-			if ( bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex].length > 0){ // delete node
-				if (bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].leftBranch !== null){
-					bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].leftBranch.parentNode = null;
-				}
-				if (bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].rightBranch !== null){
-					bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].rightBranch.parentNode = null;
-				}
-				if (bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].parentNode !== null){
-					if (bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].parentNode.leftBranch === bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex]){
-						bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].parentNode.leftBranch = null;
-					}
-					if (bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].parentNode.rightBranch === bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex]){
-						bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].parentNode.rightBranch = null;
-					}
-				}
-				bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex].splice(focusedIndex, 1);
-				focusedIndex = -1;
+		
+		if ( bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex].length > 0){ // delete node
+			if (bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].leftBranch !== null){
+				bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].leftBranch.parentNode = null;
 			}
+			if (bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].rightBranch !== null){
+				bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].rightBranch.parentNode = null;
+			}
+			if (bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].parentNode !== null){
+				if (bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].parentNode.leftBranch === bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex]){
+					bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].parentNode.leftBranch = null;
+				}
+				if (bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].parentNode.rightBranch === bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex]){
+					bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex][focusedIndex].parentNode.rightBranch = null;
+				}
+			}
+			bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex].splice(focusedIndex, 1);
+			focusedIndex = -1;
 		}
 	} else if (typingComment !== null) {
 		e.preventDefault();
@@ -396,26 +359,7 @@ function canvas_keydown_handler(e){
 	}
 }
 
-function PostLoadProject () {
-	localStorage.setItem("X2Kcount", Xen2KHandle.construction.length);
-	bareNodeList = new Array(Xen2KHandle.construction.length);
-	bareNodeList_constructor = new Array(Xen2KHandle.construction.length);
-	for (var index = 0; index < Xen2KHandle.construction.length; index++){
-		localStorage.setItem("constructor"+index.toString(), Xen2KHandle.construction[index].join(''));
-		bareNodeList_constructor[index] =( Xen2KHandle.BuildCanvasBoxTree(Xen2KHandle.construction[index],-1));
-		localStorage.setItem("constructorComment" + index.toString(), StringifyBareNodeListComment(-1, bareNodeList_constructor[index]));
-		localStorage.setItem("memvar"+index.toString(), Xen2KHandle.classmember[index]);
-		localStorage.setItem("X2KClassFuncCount"+ index.toString(), Xen2KHandle.classFunction[index].length);
-		bareNodeList[index] = new Array(Xen2KHandle.classFunction[index].length);
-		for (var index2 in Xen2KHandle.classFunction[index]) {
-			localStorage.setItem("memfunc"+index.toString()+"_"+(index2).toString(), Xen2KHandle.classFunction[index][index2].join(''));
-			bareNodeList[index][index2] = Xen2KHandle.BuildCanvasBoxTree(Xen2KHandle.classFunction[index][index2], index2);
-			localStorage.setItem("memfuncComment"+index.toString() + "_" + index2.toString(), StringifyBareNodeListComment(index2, bareNodeList[index][index2]));
-		}
-	}
-}
-
-function StringifyBareNodeList(CanvasBoxNode){
+function StringifyBareNodeList(CanvasBoxNode){ // CanvasBoxNode: an array of CanvasBox objects
 	var result = "";
 	var rootNodeList = [];
 	for (var elem in CanvasBoxNode){
@@ -462,69 +406,19 @@ function StringifyBareNodeList(CanvasBoxNode){
 	return result;
 }
 
-function StringifyBareNodeListComment ( commentNum,CanvasBoxNode) {
-	var result = "";
-	for (var elem in CanvasBoxNode){
-		if (CanvasBoxNode[elem].comment.length >0 ) {
-			result += "\n?" + commentNum.toString() +","+CanvasBoxNode[elem].index.toString() +","+CanvasBoxNode[elem].comment;
-		}
-	}
-	return result;
-}
-
 function savehandler(e) {
-	localStorage.clear();
-	localStorage.setItem("X2Kcount", Xen2KHandle.construction.length);
-	for (var index = 0; index < Xen2KHandle.construction.length; index++){
-		localStorage.setItem("constructor"+index.toString(), StringifyBareNodeList(bareNodeList_constructor[index]));
-		localStorage.setItem("constructorComment" + index.toString(), StringifyBareNodeListComment(-1, bareNodeList_constructor[index]));
-		//
-		localStorage.setItem("memvar"+index.toString(), Xen2KHandle.classmember[index]);
-		//
-		localStorage.setItem("X2KClassFuncCount"+ index.toString(), Xen2KHandle.classFunction[index].length);
-		for (var index2 in Xen2KHandle.classFunction[index]) {
-			localStorage.setItem("memfunc"+index.toString()+"_"+(index2).toString(), StringifyBareNodeList(bareNodeList[index][index2]));
-			localStorage.setItem("memfuncComment"+index.toString() + "_" + index2.toString(), StringifyBareNodeListComment(index2, bareNodeList[index][index2]));
-		}
-	}
-	contentChanged = 1;
-	refreshClassExplorer();
-}
-
-function exporthandler(e) {
 	if (contentChanged === 0) {
 		var savemessagedialog = document.getElementById("savedialog");
 		savemessagedialog.showModal();
 	} else {
-		var rootNodeList =  [];
 		// member saving
-		var resultscript = "";
-		for (var index0 in Xen2KHandle.construction) {
-			for (var member of Xen2KHandle.classmember[index0]){
-				resultscript += member.toString() + ",";
-			}
-			resultscript += "\n#";
-			//constructor saving
-			resultscript += window.localStorage.getItem("constructor"+index0.toString()); // constructor;
-			//member function saving
-			for (var index1 in Xen2KHandle.classFunction[index0]){
-				resultscript += "\n! ";
-				resultscript += window.localStorage.getItem("memfunc"+index0.toString()+"_"+index1.toString());
-			}
-			//comment saving
-			resultscript += window.localStorage.getItem("constructorComment" + index0.toString());
-			for (var index1 in Xen2KHandle.classFunction[index0]) {
-				resultscript += window.localStorage.getItem("memfuncComment"+index0.toString()+"_"+index1.toString());
-			}
-			//finish
-			resultscript += "\n&";
-		}
+		var resultscript = StringifyBareNodeList(bareNodeList);
 		
 		// download the result
 		var file = new Blob([resultscript], {type:"text/plain"});
 		var a = document.createElement("a"),url = URL.createObjectURL(file);
 		a.href = url;
-		a.download = "exported.x2k";
+		a.download = e.data;
 		document.body.appendChild(a);
 		a.click();
 		setTimeout(function() {
@@ -543,42 +437,27 @@ function AddNodeToCanvas(pos, NodeName) {
 			Object.assign(sourceNode, NodeArray[node]);
 			if (sourceNode.numstr !== "*" && sourceNode.numstr !== "_") sourceNode.numstr = itoa(parseInt(sourceNode.numstr));
 			sourceNode.SetPosition(pos[0], pos[1]);
-			if (!constructorLoaded) {
-				if (currentCanvasClassIndex >=0 && currentCanvasFuncIndex >=0){
-					sourceNode.index = bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex].length;
-					bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex].push(sourceNode);
-					contentChanged = 0;
-				}
-			} else {
-				if (currentCanvasClassIndex >=0 ){
-					sourceNode.index = bareNodeList_constructor[currentCanvasClassIndex].length;
-					bareNodeList_constructor[currentCanvasClassIndex].push(sourceNode);
-					contentChanged = 0;
-				}
+			if (currentCanvasClassIndex >=0 && currentCanvasFuncIndex >=0){
+				sourceNode.index = bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex].length;
+				bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex].push(sourceNode);
+				contentChanged = 0;
 			}
+			
 			break;
 		}
 	}
 }
 
 function playProgram(ev) {
-	if (Xen2KHandle.construction.length === 0 || Xen2KHandle.construction[0].length === 0) return;
-	savehandler(ev);
-	Xen2KHandle.Traverse(false);
+	return;
 }
 
 function renderCanvas(){
 	document.getElementById("MainCanvas").width = document.getElementById("MainCanvas").width; // reset the canvas
 	if (currentCanvasClassIndex >=0 ) {
-		if (constructorLoaded){
-			for (var elem of bareNodeList_constructor[currentCanvasClassIndex]) {
+		if (currentCanvasFuncIndex >=0){
+			for (var elem of bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex]){
 				elem.DrawNode();
-			}
-		} else {
-			if (currentCanvasFuncIndex >=0){
-				for (var elem of bareNodeList[currentCanvasClassIndex][currentCanvasFuncIndex]){
-					elem.DrawNode();
-				}
 			}
 		}
 	}
@@ -592,12 +471,7 @@ function renderCanvas(){
 		ctx.lineWidth = 1.0;
 		ctx.stroke();
 	}
-	if (Xen2KHandle.console2Canvas){
-		document.getElementById("consoleCanvas").width = document.getElementById("consoleCanvas").width; // reset the canvas
-		for (var elem of DrawableObjectList) {
-			elem.Draw();
-		}
-	}
+
 	if (DropMenuHandle.activated)DropMenuHandle.DrawMenu(document.getElementById("MainCanvas").getContext("2d"));
 	requestAnimationFrame(renderCanvas);
 }
@@ -657,19 +531,18 @@ FunctionInfoElem.push(['_','_']);
 
 var FunctionInfos = new Map(FunctionInfoElem);
 
-var bareNodeList = [];
-
 var Background = document.createElement('div');
 Background.id = "ide_main";
 Background.style.display = "table-row-group";
 Background.innerHTML = "<div id=\"functioncanvas\"></div>\
-<div id = \"mainplate\"> \
+	<div id = \"mainplate\"> \
        <canvas id=\"MainCanvas\" width=\"800px\" height=\"600px\"></canvas> \
     </div>";
 document.getElementById("mw-content-text").appendChild(Background);
 Background.innerHTML += "<span id = \"nodelist\" width=\"800px\" height=\"600px\"> \
-	Xen2K IDE<br>\
-    </span>";
+	Xen2K IDE\
+    </span><br>";
+Background.innerHTML += "클래스 이름<input id=\"varEdit\" name=\"ide_VarEdit\" onchange=\"EditClassName(event)\"><button onclick=\"createClass(event)\">새 클래스 만들기</button>";
 
 var savedialog = document.createElement("dialog");
 savedialog.id = "savedialog";
@@ -693,14 +566,9 @@ document.getElementById("ide_main").appendChild(savedialog);
 var SaveButton = document.createElement("button");
 SaveButton.id = "saveButton";
 SaveButton.addEventListener("click", savehandler);
-SaveButton.innerText = "임시저장";
+SaveButton.data = 
+SaveButton.innerText = "저장";
 document.getElementById("ide_main").appendChild(SaveButton);
-	
-var exportToFileButton = document.createElement("button");
-exportToFileButton.id = "exportButton";
-exportToFileButton.addEventListener("click", exporthandler);
-exportToFileButton.innerText = "X2K로 내보내기";
-document.getElementById("ide_main").appendChild(exportToFileButton);
 
 var PlayButton = document.createElement("button");
 PlayButton.id = "playButton";
@@ -711,7 +579,7 @@ document.getElementById("ide_main").appendChild(PlayButton);
 var formElement = document.createElement('form');
 formElement.name = "uploadedFile";
 formElement.innerHTML = "\
-	  <span>꾸러미 가져오기</span>\
+	  <span>프로젝트 가져오기</span>\
       <input id=\"uploadInput\" type=\"file\" name=\"myFiles\" onchange=\"onChangeFile(event)\">";
 document.getElementById("ide_main").appendChild(formElement);
 
@@ -723,39 +591,36 @@ document.getElementById("ide_main").appendChild(consolepage);
 var classpage = document.createElement('div');
 classpage.id = "ide_class";
 classpage.innerHTML = "변수 수정<input id=\"varEdit\" name=\"ide_VarEdit\" onchange=\"EditMemberVar(event)\">";
-classpage.innerHTML += "<button onclick=\"createClass(event)\">새 클래스 만들기</button>"
 document.getElementById("mainplate").appendChild(classpage);
 
 var NodeArray = [];
-NodeArray.push(new CanvasBox('VARUSE','1008'));
-NodeArray.push(new CanvasBox('BREAK','1561'));
-NodeArray.push(new CanvasBox('DIV','1568'));
-NodeArray.push(new CanvasBox('ADD','1638'));
-NodeArray.push(new CanvasBox('SUB','1687'));
-NodeArray.push(new CanvasBox('MUL','1715'));
-NodeArray.push(new CanvasBox('NAND','1806'));
-NodeArray.push(new CanvasBox('SHL','1813'));
-NodeArray.push(new CanvasBox('SET','2177'));
-NodeArray.push(new CanvasBox('STOP','2541'));
-NodeArray.push(new CanvasBox('VARDEC','2548'));
-NodeArray.push(new CanvasBox('OUTC','2562'));
-NodeArray.push(new CanvasBox('OUTSTR','2569'));
-NodeArray.push(new CanvasBox('IFEQ','7931'));
-NodeArray.push(new CanvasBox('IFLT','7938'));
-NodeArray.push(new CanvasBox('CMP','7980'));
-NodeArray.push(new CanvasBox('WHILE','8225'));
-NodeArray.push(new CanvasBox('*','*'));
-NodeArray.push(new CanvasBox('_','_'));
+NodeArray.push(new CanvasBox([0,0],'VARUSE','1008'));
+NodeArray.push(new CanvasBox([0,0],'BREAK','1561'));
+NodeArray.push(new CanvasBox([0,0],'DIV','1568'));
+NodeArray.push(new CanvasBox([0,0],'ADD','1638'));
+NodeArray.push(new CanvasBox([0,0],'SUB','1687'));
+NodeArray.push(new CanvasBox([0,0],'MUL','1715'));
+NodeArray.push(new CanvasBox([0,0],'NAND','1806'));
+NodeArray.push(new CanvasBox([0,0],'SHL','1813'));
+NodeArray.push(new CanvasBox([0,0],'SET','2177'));
+NodeArray.push(new CanvasBox([0,0],'STOP','2541'));
+NodeArray.push(new CanvasBox([0,0],'VARDEC','2548'));
+NodeArray.push(new CanvasBox([0,0],'OUTC','2562'));
+NodeArray.push(new CanvasBox([0,0],'OUTSTR','2569'));
+NodeArray.push(new CanvasBox([0,0],'IFEQ','7931'));
+NodeArray.push(new CanvasBox([0,0],'IFLT','7938'));
+NodeArray.push(new CanvasBox([0,0],'CMP','7980'));
+NodeArray.push(new CanvasBox([0,0],'WHILE','8225'));
+NodeArray.push(new CanvasBox([0,0],'*','*'));
+NodeArray.push(new CanvasBox([0,0],'_','_'));
 for (var node of NodeArray) {
 	document.getElementById("nodelist").innerHTML += "<div class=\"nodes\" style=\"display:inline;background-color:#ecb324;margin:2px;\" draggable=\"true\">"+node.nodename+"</div>";
-
 }
 
 var FreshPageLoaded = false;
 
 window.addEventListener('DOMContentLoaded', () => {
 	FreshPageLoaded = true;
-	localStorage.clear();
 	// Get the element by id
 	var element1 = document.getElementsByClassName("nodes");
 	// Add the ondragstart event listener
