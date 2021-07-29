@@ -1,28 +1,5 @@
 // runtime.js
 
-/**
- * Xen2K Javascript Converter
-**/
-const VERSION = "PSI 0.1.2";
-
-var Xen2KProgramCanvas = null;
-
-function BreakLoop(Exception){
-    this.message = Exception;
-    this.name = "Break";
-}
-BreakLoop.prototype.toString = function () {
-    return this.name + ': "' + this.message + '"';
-}
-
-function TreeNode(num){
-	this.parentNode = null;
-	this.numstr = num;
-	this.value = NaN;
-	this.leftBranch = null;
-	this.rightBranch = null;
-}
-
 // main program class
 
 function Xen2K() {
@@ -31,7 +8,7 @@ function Xen2K() {
 	this.variables = [];
 	this.classmember = [];
 	this.classFunction = [];
-	this.DrawableObjectList = [];
+	this.classComments = [];
 	
 	// read: parse code and set a binary CanvasBox Tree
 	this.read = function(data){
@@ -39,13 +16,21 @@ function Xen2K() {
 		this.variables = [];
 		this.classmember = [];
 		this.classFunction = [];
+		this.comments = [];
 		
 		var classes = data.trim().split("&");
 		//classes.pop();
 		for(var classtext of classes) {
 			// comment Extraction
+			var commentdata = classtext.trim().split("?");
+			var tempCommentArray = new Array(0);
+			for (var i = 1; i< commentdata.length; i++) {
+				var CommentTokens = commentdata[i].trim().split(",");
+				tempCommentArray.push([parseInt(CommentTokens[0]), parseInt(CommentTokens[1]), CommentTokens[2]] );
+			}
+			this.comments.push( tempCommentArray);
 			//member function and constructor parsing
-			var tempdata = classtext.trim().split("!");
+			var tempdata = commentdata[0].trim().split("!");
 			var tempArray2 = new Array(0);
 			for (var i = 1; i< tempdata.length; i++) {
 				var memberFuncInfo = tempdata[i].trim().split(",");
@@ -65,12 +50,12 @@ function Xen2K() {
 		}
         return;
 	};
-	
-	this.BuildTree = function (tokens){
+	this.BuildCanvasBoxTree = function (tokens, TreeIndex){
 		if (tokens === []) return [];
 		var resultNodeList = [];
 		var tempRootNodeList = [];
 		var currentNode = null;
+		var loopcount = 0;
 		var indentcount = 0;
 		var indexcount = 0;
 		var instructioncalled = false;
@@ -79,27 +64,35 @@ function Xen2K() {
 				case '/':
 					if (instructioncalled) {
 						indentcount += 1;
-						currentNode.leftBranch = new TreeNode("");
+						currentNode.leftBranch = new CanvasBox("", "");
 						currentNode.leftBranch.parentNode = currentNode;
+						currentNode.leftBranch.position[0] = currentNode.leftBranch.parentNode.position[0]-25*indentcount;
+						currentNode.leftBranch.position[1] = 60*indentcount;
 						currentNode = currentNode.leftBranch;
 					}
 					else {
 						currentNode = currentNode.parentNode; 
-						currentNode.rightBranch = new TreeNode("");
+						currentNode.rightBranch = new CanvasBox("", "");
 						currentNode.rightBranch.parentNode = currentNode;
+						currentNode.rightBranch.position[0] = currentNode.rightBranch.parentNode.position[0]+25*indentcount;
+						currentNode.rightBranch.position[1] = 60*indentcount;
 						currentNode = currentNode.rightBranch;
 					}
 					break;
 				case '=':
 					indentcount += 1;
-					currentNode.leftBranch = new TreeNode( "");
+					currentNode.leftBranch = new CanvasBox("", "");
 					currentNode.leftBranch.parentNode = currentNode;
+					currentNode.leftBranch.position[0] = currentNode.leftBranch.parentNode.position[0]-25*indentcount;
+					currentNode.leftBranch.position[1] = 60*indentcount;
 					currentNode = currentNode.leftBranch;
 					break;
 				case '+':
 					currentNode = currentNode.parentNode; 
-					currentNode.rightBranch = new TreeNode( "");
+					currentNode.rightBranch = new CanvasBox("", "");
 					currentNode.rightBranch.parentNode = currentNode;
+					currentNode.rightBranch.position[0] = currentNode.rightBranch.parentNode.position[0]+25*indentcount;
+					currentNode.rightBranch.position[1] = 60*indentcount;
 					currentNode = currentNode.rightBranch;
 					break;
 				case '\\':
@@ -108,12 +101,27 @@ function Xen2K() {
 					indentcount -= 1;
 					break;
 				case '*': //random
+				case '_': //previous
+					currentNode.nodename = elem;
 					currentNode.numstr = elem;
-					indexcount += 1;
-					instructioncalled = false;
-					break;
-				case '_': //data
-					currentNode.numstr = elem;
+					currentNode.index = indexcount;
+					if (TreeIndex <0) {
+						for (var index0 in this.constructorcomments) {
+							for (var index1 in this.constructorcomments[index0]) {
+								if ( this.constructorcomments[index0][index1][1] === indexcount ) {
+									currentNode.comment = this.constructorcomments[index0][index1][2];
+								}
+							}
+						}
+					} else {
+						for (var index0 in this.comments) {
+							for (var index1 in this.comments[index0]) {
+								if (this.comments[index0][index1][0] === TreeIndex && this.comments[index0][index1][1] === indexcount ) {
+									currentNode.comment = this.comments[index0][index1][2];
+								}
+							}
+						}
+					}
 					indexcount += 1;
 					instructioncalled = false;
 					break;
@@ -123,10 +131,30 @@ function Xen2K() {
 					// do nothing, because we already have passed this token 
 					break;
 				default: // instruction
-					if (indentcount === 0)currentNode = new TreeNode(elem);
+					if (indentcount === 0)currentNode = new CanvasBox(FunctionInfos.get(atoi(elem).toString()),elem);
 					instructioncalled = true;
+					currentNode.nodename = FunctionInfos.get(atoi(elem).toString());
 					currentNode.numstr = elem;
+					currentNode.index = indexcount;
+					if (TreeIndex <0) {
+						for (var index0 in this.constructorcomments) {
+							for (var index1 in this.constructorcomments[index0]) {
+								if ( this.constructorcomments[index0][index1][1] === indexcount ) {
+									currentNode.comment = this.constructorcomments[index0][index1][2];
+								}
+							}
+						}
+					} else {
+						for (var index0 in this.comments) {
+							for (var index1 in this.comments[index0]) {
+								if (this.comments[index0][index1][0] === TreeIndex && this.comments[index0][index1][1] === indexcount ) {
+									currentNode.comment = this.comments[index0][index1][2];
+								}
+							}
+						}
+					}
 					indexcount += 1;
+					currentNode.position[0] = 25*loopcount;
 					break;
 			}
 			if (instructioncalled === false && indentcount === 0) {
@@ -145,9 +173,8 @@ function Xen2K() {
 		}
 		return resultNodeList;
 	}
-	
-	this.Traverse = (tokens, DoNotDisplay) => {
-		this.currentNodeList = this.BuildTree(tokens);
+	this.Traverse = (DoNotDisplay) => {
+		this.currentNodeList = this.BuildCanvasBoxTree(this.construction[0], -1);
 		for (var node of this.currentNodeList){
 			if (node.parentNode === null) {
 				this.invoke([node, node.leftBranch, node.rightBranch], DoNotDisplay);
@@ -175,8 +202,10 @@ function Xen2K() {
 		consoleCanvas.style = "display:table-cell";
 		consoleCanvas.width = this.arg(a, false);
 		consoleCanvas.height = this.arg(b, false);
-		document.getElementById("mw-content-text").appendChild(consoleCanvas);
-		return consoleCanvas.getContext("2d");
+		document.getElementById("ide_console").appendChild(consoleCanvas);
+		this.currentCanvas = consoleCanvas.getContext("2d");
+		this.console2Canvas = true;
+		return 0;
 	} // "830": initialize Canvas; arg0, arg1: list of width and height
 	this.VARUSE=(a, b)=>{
 		a = this.arg(a, false);
@@ -293,24 +322,24 @@ function Xen2K() {
 	this.SETMEMBER = function (a,b) {
 		a = this.arg(a, false);
 		b = this.arg(b, false);
-		//a = b;
+		a = b;
 		return 0;
 	}
 	this.DRAWRECT = (a, b) => {
 		// a is left top position, b is size
-		this.DrawableObjectList.push( new DrawableObject(null,this.arg(a,false), this.arg(b,false), 0));
+		DrawableObjectList.push( new DrawableObject(null,this.arg(a,false), this.arg(b,false), 0));
 	}
 	this.DRAWCIRCLE = (a, b) => {
 		// a is center position, b is radius
-		this.DrawableObjectList.push( new DrawableObject(null,this.arg(a,false), this.arg(b,false), 1));
+		DrawableObjectList.push( new DrawableObject(null,this.arg(a,false), this.arg(b,false), 1));
 	}
 	this.DRAWLINE = (a, b) => {
 		// both a and b are position(start, end)
-		this.DrawableObjectList.push( new DrawableObject(null,this.arg(a,false), this.arg(b,false), 2));
+		DrawableObjectList.push( new DrawableObject(null,this.arg(a,false), this.arg(b,false), 2));
 	}
 	this.DRAWTEXT = function (a, b) {
 		// both a and b are position(start, end)
-		this.DrawableObjectList.push( new DrawableObject(null,this.arg(a,false), this.arg(b,false), 3));
+		DrawableObjectList.push( new DrawableObject(null,this.arg(a,false), this.arg(b,false), 3));
 	}
 	this.SETTIMER = (a, b) => {
 		// a is content, b is timeout value
@@ -326,7 +355,7 @@ function Xen2K() {
 		else return this.set(this.arg(a, false).join(''))
 	}
 	this.SPAWNSTICKMAN = function (a,b) {
-		this.DrawableObjectList.push( new StickMan(this.arg(a,false), this.arg(b,false)));
+		DrawableObjectList.push( new StickMan(this.arg(a,false), this.arg(b,false)));
 	}
 	this.command = [
 		['1001' , this.DEFCANVAS], // "830": initialize Canvas, arg0: list of width and height; arg1: 2d(0) or webgl(1)
@@ -363,7 +392,7 @@ function Xen2K() {
 	this.functions = new Map(this.command);
 	this.invoke= function(instruction, DoNotDisplay = false){
         var ISA = instruction;
-        if (DoNotDisplay && (ISA[0].numstr === '2562'|| ISA[0].numstr === '2569'))
+        if (DoNotDisplay && (ISA[0].name === '2562'|| ISA[0].naver === '2569'))
             return this.set(this.arg(ISA[1], DoNotDisplay));
         return (this.functions.get(atoi(ISA[0].numstr).toString()))(ISA[1],ISA[2]);
     };
@@ -406,3 +435,25 @@ function Xen2K() {
         return this.functions.get(token);
 	};
 }
+
+/*
+var Xen2KObject = document.createElement('script');
+Xen2KObject.type = 'text/javascript';
+Xen2KObject.src = 'X2KObject.js';
+document.getElementById("mw-content-text").append(Xen2KObject);
+
+var Xen2KClass = document.createElement('script');
+Xen2KClass.type = 'text/javascript';
+Xen2KClass.src = 'X2KClass.js';
+document.getElementById("mw-content-text").append(Xen2KClass);
+
+var Xen2KUtility = document.createElement('script');
+Xen2KUtility.type = 'text/javascript';
+Xen2KUtility.src = 'X2KUtility.js';
+document.getElementById("mw-content-text").append(Xen2KUtility);
+
+var Xen2KUI = document.createElement('script');
+Xen2KUI.type = 'text/javascript';
+Xen2KUI.src = 'X2KUI.js';
+document.getElementById("mw-content-text").append(Xen2KUI);
+*/
