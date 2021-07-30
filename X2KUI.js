@@ -35,8 +35,15 @@ function DropdownMenu (menulist){
 		}
 	}
 }
+//psuedo Node
+function psuedoNode (nodeInfo) {
+	this.position = [nodeInfo[0], nodeInfo[1]];
+	this.nodename = nodeInfo[2];
+	this.numstr = nodeInfo[2];
+	this.left = nodeInfo[3];
+	this.right = nodeInfo[4];
+}
 
-var bareNodeList = [];
 // Canvas Node
 function CanvasBox (position, nodename, numstr) {
 	this.position = position;
@@ -107,6 +114,9 @@ function CanvasBox (position, nodename, numstr) {
 	}
 }
 
+var classNodeList = [];
+
+
 var contentChanged = 0;
 // callback functions
 function onChangeFile(event) {
@@ -117,14 +127,39 @@ function onChangeFile(event) {
 	reader.onload = function(e) {
 	  fileText = e.target.result;
 	  contentChanged = 1;
-	  bareNodeList = [];
-	  PostLoadProject();
+	  classNodeList = PostLoadProject(fileText);
 	};
 	reader.readAsText(file);
 }
 
-function PostLoadProject () {
-	return;
+function PostLoadProject (text) {
+	var resultNodeList = [];
+	var tempClassList = [];
+	var classes = text.trim().split("&");
+	// member variable initial value
+	var classvariable = classes[0].trim().split(",");
+	resultNodeList.push(classvariable);
+	for(var i = 1; i < classes.length; i++){
+		tempClassList = [];
+		// member class Node making
+		var classText = classes[i];
+		var classfuncs = classText.trim().split("!");
+		for (var j = 1; j < classfuncs.length; j++){
+			var classfunction = new psuedoNode(classfuncs[j].trim().split(","));
+			tempClassList.push(classfunction);
+		}
+		resultNodeList.push(tempClassList);
+	}
+	return resultNodeList;
+}
+
+function canvas_click_handler(e) {
+	e.preventDefault();
+	if (e.button == 0){
+
+	} else if (e.button === 2){
+		DropMenuHandle.activated = !DropMenuHandle.activated;
+	}
 }
 
 function canvas_mousedown_handler(e) {
@@ -288,8 +323,9 @@ window.addEventListener('DOMContentLoaded', () => {
 		
 	var element2 = document.getElementById("MainCanvas");
 	
+	element2.addEventListener("click", canvas_click_handler);
 	element2.addEventListener("mousedown", canvas_mousedown_handler);
-	element2.addEventListener("contextmenu", function(e) {e.preventDefault();return false;});
+	element2.addEventListener("contextmenu", function(e) {e.preventDefault();});
 	element2.addEventListener("mouseup",canvas_mouseup_handler);
 	element2.addEventListener("mousemove",canvas_mousemove_handler);
 	element2.addEventListener("wheel", canvas_wheel_handler);

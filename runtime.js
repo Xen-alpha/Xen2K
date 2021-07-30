@@ -32,6 +32,7 @@ function Xen2K() {
 	this.classmember = [];
 	this.classFunction = [];
 	this.DrawableObjectList = [];
+	this.varIndex = 0;
 	
 	// read: parse code and set a binary CanvasBox Tree
 	this.read = function(data){
@@ -39,6 +40,7 @@ function Xen2K() {
 		this.variables = [];
 		this.classmember = [];
 		this.classFunction = [];
+		this.varIndex = 0;
 		
 		var classes = data.trim().split("&");
 		//classes.pop();
@@ -58,7 +60,7 @@ function Xen2K() {
 			var tempArray3 = new Array(0);
 			for (var i = 1; i< tempArray.length; i++) {
 				var memberVarInfo = tempArray[i].trim().split(",");
-				var memberVarTokens = [parseInt(memberVarInfo[0]), parseInt(memberVarInfo[1]), this.tokenize(memberVarInfo[2])];
+				var memberVarTokens = this.tokenize(memberVarInfo[2]);
 				tempArray3.push(memberVarTokens);
 			} 
 			this.classmember.push(tempArray3);
@@ -163,6 +165,8 @@ function Xen2K() {
 			return this.set(Math.floor(Math.random()* 10000));
 		}
         else if (argument.nodename === '_'){
+			this.result = this.classmember[this.varIndex];
+			this.varIndex += 1;
             return this.result;
 		}
         else  // we need recursion to traverse the instruction tree
@@ -406,3 +410,5 @@ function Xen2K() {
         return this.functions.get(token);
 	};
 }
+
+var Xen2KHandle = new Xen2K();
