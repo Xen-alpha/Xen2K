@@ -1,0 +1,40 @@
+#nodelist {
+	background-color: yellow;
+	display: block;
+	text-align: center;
+	display:table-row;
+}
+#maincanvas {
+	display:table-cell;
+}
+#mainplate {
+	background-color: #aaaaaa;
+	overflow: visible;
+	display:table-row;
+}
+#mw-content-text {
+	display: table;
+}
+#ide_console {
+	background-color: black;
+	color: white;
+	display:table-row;
+	height: 250px;
+	overflow-y:scroll;
+	vertical-align: top;
+}
+#ide_class {
+	width: 425px;
+	height: 400px;
+	vertical-align: top;
+	display:table-cell;
+	background-color: blueviolet;
+	overflow-y:scroll;
+}
+#classManager {
+	display:table-cell;
+}
+#functioncanvas{
+	background-color:yellow;
+	height: 40px;
+}
