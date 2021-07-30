@@ -53,32 +53,6 @@ function itoa(number) {
 }
 
 //class
-<<<<<<< HEAD
-=======
-
-var MathHelper = {
-    // Get a value between two values
-    clamp: function (value, min, max) {
-
-        if (value < min) {
-            return min;
-        }
-        else if (value > max) {
-            return max;
-        }
-
-        return value;
-    },
-    // Get the linear interpolation between two value
-    lerp: function (value1, value2, amount) {
-        amount = amount < 0 ? 0 : amount;
-        amount = amount > 1 ? 1 : amount;
-        return value1 + (value2 - value1) * amount;
-    }
-
-};
-
->>>>>>> parent of 134ec7c... rebuilding code checkpoint 1
 function BreakLoop(Exception){
     this.message = Exception;
     this.name = "Break";
@@ -123,14 +97,6 @@ function DropdownMenu (menulist){
 }
 
 var DrawableObjectList = [];
-<<<<<<< HEAD
-function DrawableObject (a, b, type){
-	this.a = a;
-	this.b = b;
-	this.type = type;
-	this.Draw = () => {
-		if (this.type === 0) {
-=======
 function DrawableObject (parentobj, a, b, type){
 	this.a = a;
 	this.b = b;
@@ -141,7 +107,6 @@ function DrawableObject (parentobj, a, b, type){
 	this.maxAnimationSequenceNumber = 0;
 	this.Draw = function () {
 		if (this.type === 0) { // rectangle
->>>>>>> parent of 134ec7c... rebuilding code checkpoint 1
 			if (Xen2KHandle.console2Canvas && Xen2KHandle.currentCanvas !== null) {
 				var pos = a;
 				var size = b;
@@ -151,11 +116,7 @@ function DrawableObject (parentobj, a, b, type){
 				Xen2KHandle.currentCanvas.fillStyle = "rgba(255, 255, 255,1)";
 				Xen2KHandle.currentCanvas.fill();
 			}
-<<<<<<< HEAD
-		} else if (this.type === 1) {
-=======
 		} else if (this.type === 1) { // circle
->>>>>>> parent of 134ec7c... rebuilding code checkpoint 1
 			if (Xen2KHandle.console2Canvas && Xen2KHandle.currentCanvas !== null) {
 				var pos = a;
 				var radius = b;
@@ -167,23 +128,6 @@ function DrawableObject (parentobj, a, b, type){
 				Xen2KHandle.currentCanvas.strokeStyle = "rgba(255, 255, 255,1)";
 				Xen2KHandle.currentCanvas.stroke();
 			}
-<<<<<<< HEAD
-		} else if (this.type === 2) {
-			if (Xen2KHandle.console2Canvas && Xen2KHandle.currentCanvas !== null) {
-				var pos = a;
-				var pos2 = b;
-				Xen2KHandle.currentCanvas.beginPath();
-				Xen2KHandle.currentCanvas.moveTo(parseInt(pos[0]), parseInt(pos[1]));
-				Xen2KHandle.currentCanvas.LineTo(parseInt(pos2[0]), parseInt(pos2[1]));
-				Xen2KHandle.currentCanvas.closePath();
-				Xen2KHandle.currentCanvas.fillStyle = "rgba(255, 255, 255,1)";
-				Xen2KHandle.currentCanvas.fill();
-			}
-		}
-	}
-}
-
-=======
 		} else if (this.type === 2) { // line
 			if (Xen2KHandle.console2Canvas && Xen2KHandle.currentCanvas !== null) {
 				if (this.parentObject !== null) {
@@ -284,7 +228,6 @@ function StickMan (a, b) {
 StickMan.prototype = Object.create(DrawableObject.prototype);
 StickMan.prototype.constructor = StickMan;
 
->>>>>>> parent of 134ec7c... rebuilding code checkpoint 1
 function CanvasBox (nodename, numstr) {
 	this.position = [0,0];
 	this.size = [100, 50];
@@ -685,19 +628,6 @@ function Xen2K() {
 	this.GETMEMBER = (a,b) => {
 		return this.classmember[this.arg(a,false)][this.arg(b, false)];
 	}
-<<<<<<< HEAD
-	this.DRAWRECT = (a, b) => {
-		// a is left top position, b is size
-		DrawableObjectList.push(new DrawableObject(this.arg(a,false), this.arg(b,false), 0));
-	}
-	this.DRAWCIRCLE = (a, b) => {
-		// a is center position, b is radius
-		DrawableObjectList.push(new DrawableObject(this.arg(a,false), this.arg(b,false), 1));
-	}
-	this.DRAWLINE = (a, b) => {
-		// both a and b are position(start, end)
-		DrawableObjectList.push(new DrawableObject(this.arg(a,false), this.arg(b,false), 2));
-=======
 	this.SETMEMBER = function (a,b) {
 		a = this.arg(a, false);
 		b = this.arg(b, false);
@@ -719,7 +649,6 @@ function Xen2K() {
 	this.DRAWTEXT = function (a, b) {
 		// both a and b are position(start, end)
 		DrawableObjectList.push( new DrawableObject(null,this.arg(a,false), this.arg(b,false), 3));
->>>>>>> parent of 134ec7c... rebuilding code checkpoint 1
 	}
 	this.SETTIMER = (a, b) => {
 		// a is content, b is timeout value
@@ -734,21 +663,14 @@ function Xen2K() {
 		if (b !== 0 ) return this.set(this.arg(a, false).reverse().join(''));
 		else return this.set(this.arg(a, false).join(''))
 	}
-<<<<<<< HEAD
-	
-=======
 	this.SPAWNSTICKMAN = function (a,b) {
 		DrawableObjectList.push( new StickMan(this.arg(a,false), this.arg(b,false)));
 	}
->>>>>>> parent of 134ec7c... rebuilding code checkpoint 1
 	this.command = [
 		['1001' , this.DEFCANVAS], // "830": initialize Canvas, arg0: list of width and height; arg1: 2d(0) or webgl(1)
 		['1008' , this.VARUSE], // "837": get arg0[arg1]
 		['1015' , this.DEFVECTOR],
-<<<<<<< HEAD
-=======
 		['1029', this.SETMEMBER],
->>>>>>> parent of 134ec7c... rebuilding code checkpoint 1
 		['1036', this.CALLMEMBER],
 		['1043', this.GETMEMBER],
 		['1050', this.DRAWRECT], 
@@ -757,11 +679,8 @@ function Xen2K() {
 		['1071', this.SETTIMER], 
 		['1078', this.DEFCALLBACK],
 		['1085', this.LIST2STR],
-<<<<<<< HEAD
-=======
 		['1092', this.DRAWTEXT],
 		['1099', this.SPAWNSTICKMAN],
->>>>>>> parent of 134ec7c... rebuilding code checkpoint 1
 		['1561' , this.BREAK],// "119 ": throw error in Xen2K
 		['1568' , this.DIV], // "11 6"
 		['1638' , this.ADD], // "125 "
@@ -1465,17 +1384,12 @@ function refreshClassExplorer () {
 			Xen2KHandle.construction[index0] = Xen2KHandle.tokenize(window.localStorage.getItem("constructor"+index0.toString())); // constructor;
 			Xen2KHandle.classmember[index0] = (window.localStorage.getItem("memvar"+index0.toString())).split(",");
 			//member function saving
-<<<<<<< HEAD
-			for (var index1 in Xen2KHandle.classFunction[index0]){
-				Xen2KHandle.classFunction[index0][index1] = Xen2KHandle.tokenize(window.localStorage.getItem("memfunc"+index0.toString()+"_"+index1.toString()));
-=======
 			if (Xen2KHandle.classFunction[index0].length >0){
 				for (var index1 in Xen2KHandle.classFunction[index0]){
 					if (Xen2KHandle.classFunction[index0][index1].length >0){
 						Xen2KHandle.classFunction[index0][index1] =  Xen2KHandle.tokenize(window.localStorage.getItem("memfunc"+index0.toString()+"_"+index1.toString()));
 					}
 				}
->>>>>>> parent of 134ec7c... rebuilding code checkpoint 1
 			}
 		}
 	}
@@ -1536,21 +1450,13 @@ function addClassToClassExplorer (classindex) { // parameter: index of Class
 	memberVarModifyButtons.style.display = "table-cell";
 	var memVarAdd = document.createElement("button");
 	memVarAdd.onclick = createMemVar;
-<<<<<<< HEAD
-	memVarAdd.value = classindex;
-=======
 	memVarAdd.value = classindex.toString();
->>>>>>> parent of 134ec7c... rebuilding code checkpoint 1
 	memVarAdd.innerText = "변수 생성";
 	memberVarModifyButtons.appendChild(memVarAdd);
 	var memVarDel = document.createElement("button");
 	memVarDel.onclick = deleteMemVar;
 	memVarDel.innerText = "변수 제거";
-<<<<<<< HEAD
-	memVarDel.value = classindex;
-=======
 	memVarDel.value = classindex.toString();
->>>>>>> parent of 134ec7c... rebuilding code checkpoint 1
 	memberVarModifyButtons.appendChild(memVarDel);
 	memberVarModifyButtonGroup.appendChild(memberVarModifyButtons);
 	memberVarRowgroup.appendChild(memberVarModifyButtonGroup);
@@ -1601,20 +1507,12 @@ function addClassToClassExplorer (classindex) { // parameter: index of Class
 	var memFuncAdd = document.createElement("button");
 	memFuncAdd.onclick = createMemFunc;
 	memFuncAdd.innerText = "함수 생성";
-<<<<<<< HEAD
 	memFuncAdd.value = classindex.toString() + "," + Xen2KHandle.classFunction[classindex].length.toString();
-=======
-	memFuncAdd.value = classindex.toString();
->>>>>>> parent of 134ec7c... rebuilding code checkpoint 1
 	memberFuncModifyButtons.appendChild(memFuncAdd);
 	var memFuncDel = document.createElement("button");
 	memFuncDel.onclick = deleteMemFunc;
 	memFuncDel.innerText = "함수 제거";
-<<<<<<< HEAD
 	memFuncDel.value = classindex.toString() + "," + Xen2KHandle.classFunction[classindex].length.toString();
-=======
-	memFuncDel.value = classindex.toString();
->>>>>>> parent of 134ec7c... rebuilding code checkpoint 1
 	memberFuncModifyButtons.appendChild(memFuncDel);
 	memberFuncModifyButtonGroup.appendChild(memberFuncModifyButtons);
 	memberFuncRowgroup.appendChild(memberFuncModifyButtonGroup);
@@ -1650,38 +1548,18 @@ function loadConstructor(ev) {
 }
 
 function createMemVar(ev) {
-<<<<<<< HEAD
-	Xen2KHandle.classmember[ev.target.getAttribute("value")].push("새 변수");
-=======
 	Xen2KHandle.classmember[parseInt(ev.target.getAttribute("value"))].push("새 변수");
 	localStorage.setItem("memvar"+ev.target.getAttribute("value"), Xen2KHandle.classmember[parseInt(ev.target.getAttribute("value"))]);
->>>>>>> parent of 134ec7c... rebuilding code checkpoint 1
 	refreshClassExplorer();
 }
 function deleteMemVar(ev) {
 	if (Xen2KHandle.classmember.length > 0){
-<<<<<<< HEAD
-		Xen2KHandle.classmember[ev.target.getAttribute("value")].pop();
-=======
 		Xen2KHandle.classmember[parseInt(ev.target.getAttribute("value"))].pop();
 		localStorage.setItem("memvar"+ev.target.getAttribute("value"), Xen2KHandle.classmember[parseInt(ev.target.getAttribute("value"))]);
->>>>>>> parent of 134ec7c... rebuilding code checkpoint 1
 	}
 	refreshClassExplorer();
 }
 function createMemFunc(ev) {
-<<<<<<< HEAD
-	var indeces = ev.target.getAttribute("value").split(",");
-	Xen2KHandle.classFunction[parseInt(indeces[0])].push([]);
-	bareNodeList[parseInt(indeces[0])].push([]);
-	refreshClassExplorer();
-}
-function deleteMemFunc(ev) {
-	var indeces = ev.target.getAttribute("value").split(",");
-	if (bareNodeList.length > 0 &&bareNodeList[indeces[0]].length > 0 ) {
-		bareNodeList[indeces[0]].pop();
-		Xen2KHandle.classFunction[indeces[0]].pop();
-=======
 	var indeces = ev.target.getAttribute("value");
 	Xen2KHandle.classFunction[parseInt(indeces)].push([]);
 	bareNodeList[parseInt(indeces)].push([]);
@@ -1694,7 +1572,6 @@ function deleteMemFunc(ev) {
 		localStorage.removeItem("memfunc"+indeces.toString()+"_"+ (Xen2KHandle.classFunction[parseInt(indeces)].length-1).toString());
 		bareNodeList[parseInt(indeces)].pop();
 		Xen2KHandle.classFunction[parseInt(indeces)].pop();
->>>>>>> parent of 134ec7c... rebuilding code checkpoint 1
 	}
 	refreshClassExplorer();	
 }
@@ -1737,10 +1614,7 @@ function EditMemberVar (ev) {
 		savemessagedialog.showModal();
 	} else {
 		Xen2KHandle.classmember[dataArray[0]][dataArray[1]] = ev.target.value;
-<<<<<<< HEAD
-=======
 		localStorage.setItem("memvar"+dataArray[0].toString(), Xen2KHandle.classmember[dataArray[0]]);
->>>>>>> parent of 134ec7c... rebuilding code checkpoint 1
 		refreshClassExplorer();
 	}
 }
@@ -1791,14 +1665,6 @@ var FunctionInfoDefault = [
 		['1015', "DEFVECTOR"],
 		['1036', "CALLMEMBER"],
 		['1043', "GETMEMBER"],
-<<<<<<< HEAD
-		['1050', "DRAWRECT"], 
-		['1057', "DRAWCIRCLE"], 
-		['1064', "DRAWLINE"], 
-		['1071', "SETTIMER"], 
-		['1078', "DEFCALLBACK"],
-		['1085', "LIST2STR"]
-=======
 		['1029', 'SETMEMBER'],
 		['1050', "DRAWRECT"], 
 		['1057', "DRAWCIRCLE"], 
@@ -1808,17 +1674,13 @@ var FunctionInfoDefault = [
 		['1078', "DEFCALLBACK"],
 		['1085', "LIST2STR"],
 		['1099', 'SPAWNSTICKMAN']
->>>>>>> parent of 134ec7c... rebuilding code checkpoint 1
 		];
 var DropMenuHandle = new DropdownMenu(FunctionInfoDefault);
 
 var FunctionInfoElem = new Array(
         ['1001', "DEFCANVAS"], 
 		['1015', "DEFVECTOR"],
-<<<<<<< HEAD
-=======
 		['1029', 'SETMEMBER'],
->>>>>>> parent of 134ec7c... rebuilding code checkpoint 1
 		['1036', "CALLMEMBER"],
 		['1043', "GETMEMBER"],		
 		['1050', "DRAWRECT"], 
@@ -1826,14 +1688,10 @@ var FunctionInfoElem = new Array(
 		['1064', "DRAWLINE"], 
 		['1071', "SETTIMER"], 
 		['1078', "DEFCALLBACK"],
-<<<<<<< HEAD
-		['1085', "LIST2STR"]);
-=======
 		['1085', "LIST2STR"],
 		['1092', "DRAWTEXT"],
 		['1099', 'SPAWNSTICKMAN']
 		);
->>>>>>> parent of 134ec7c... rebuilding code checkpoint 1
 
 FunctionInfoElem.push(['1008', 'VARUSE']);
 FunctionInfoElem.push(['1561', 'BREAK']);
