@@ -198,21 +198,18 @@ function CanvasBox (pos, nodename, numstr) {
 			ctx.lineWidth = 1.0;
 			ctx.stroke();
 		}
-		if (this.comment.length >0) {
-			ctx.beginPath();
-			ctx.rect(this.position[0]+this.size[0], this.position[1], 12 , this.size[1]);
-			ctx.fillStyle = "rgba(255, 255, 255, 1)";
-			ctx.fill();
-			ctx.closePath();
-			ctx.font = "12px Arial, sans-serif";
-			ctx.textAlign = "left";
-			ctx.textBaseline = "alphabetic";
-			ctx.strokeText(this.comment,this.position[0] +this.size[0], this.position[1]+25);
-			
-		}
+		
 	}
 }
-var bareNodeList = [];
+
+function X2KClass(classname, variables, functions){
+	this.name = classname;
+	this.varList = variables;
+	this.bareNodeList = functions;
+}
+
+var currentClass = 0;
+var classList = [new X2KClass("Main", [], [])];
 var focusedNode = null;
 var contentChanged = 1;
 // callback functions
@@ -224,30 +221,39 @@ function onChangeFile(event) {
 	reader.onload = function(e) {
 	  fileText = e.target.result;
 	  contentChanged = 1;
-	  bareNodeList = [];
-
+	  currentClass = 0;
 	  PostLoadProject(fileText);
 	};
 	reader.readAsText(file);
 }
 
+
 var rightbuttonhandler = null;
 var rightbuttonPressed = false;
-
+var branchLeft = null;
+var branchRight = null;
 function canvas_mousedown_handler(e) {
 	if (e.button === 0){
 		focusedNode = null;
-		for (var node of bareNodeList){
-			if (pointIsInArea([e.offsetX, e.offsetY], [node.position[0], node.position[1], node.size[0], node.size[1]] ) === true) {
+		branchLeft = null;
+		branchRight = null;
+		for (var node of classList[currentClass].bareNodeList){
+			if (pointIsInArea([e.offsetX, e.offsetY], [node.position[0], node.position[1], node.size[0]-10, node.size[1]-10] ) === true) {
 				focusedNode = node;
+				break;
+			} else if (pointIsInArea([e.offsetX, e.offsetY], [node.position[0], node.position[1] + node.size[1]-10, node.size[0]/2, 10] ) === true) {
+				branchLeft = node;
+				break;
+			} else if (pointIsInArea([e.offsetX, e.offsetY], [node.position[0]+node.size[0]/2, node.position[1] + node.size[1]-10, node.size[0]/2, 10]) === true) {
+				branchRight = node;
 				break;
 			}
 		}
 		if (DropdownMenuHandler.activated === true) {
 			if (pointIsInArea([e.offsetX, e.offsetY], [DropdownMenuHandler.position[0], DropdownMenuHandler.position[1], DropdownMenuHandler.size[0], DropdownMenuHandler.size[1]] ) === true) {
-				var offset = Math.floor((e.offsetY - DropdownMenuHandler.position[1]) / 10);
+				var offset = Math.trunc((e.offsetY - DropdownMenuHandler.position[1]) / 16);
 				var target = offset + DropdownMenuHandler.sightpoint;
-				bareNodeList.push(new CanvasBox(DropdownMenuHandler.position, DropdownMenuHandler.MenuList[target][1], DropdownMenuHandler.MenuList[target][0]));
+				classList[currentClass].bareNodeList.push(new CanvasBox(DropdownMenuHandler.position, DropdownMenuHandler.MenuList[target][1], DropdownMenuHandler.MenuList[target][0]));
 			}
 			DropdownMenuHandler.activated = false;
 		}
@@ -264,7 +270,7 @@ function canvas_mousedown_handler(e) {
 function canvas_mousemove_handler(e){
 	if (rightbuttonPressed === true && focusedNode === null) {
 		clearTimeout(rightbuttonhandler);
-		for (var elem of bareNodeList){
+		for (var elem of classList[currentClass].bareNodeList){
 			elem.position[0] += e.movementX;
 			elem.position[1] += e.movementY;
 		}
@@ -277,7 +283,31 @@ function canvas_mousemove_handler(e){
 function canvas_mouseup_handler(e){
 	e.preventDefault();
 	if(e.button === 0){
-		focusedNode = null;
+		if (focusedNode !== null) {
+			focusedNode = null;
+		}
+		if (branchLeft !== null){
+			for (var node of classList[currentClass].bareNodeList){
+				if ( pointIsInArea([e.offsetX, e.offsetY], [node.position[0], node.position[1], node.size[0]-10, node.size[1]-10] ) === true) {
+					if (branchLeft === node || node.parentNode !== null) continue;
+					branchLeft.leftBranch = node;
+					node.parentNode = branchLeft;
+					break;
+				}
+			}
+			branchLeft = null;
+		}
+		if (branchRight !== null){
+			for (var node of classList[currentClass].bareNodeList){
+				if ( pointIsInArea([e.offsetX, e.offsetY], [node.position[0], node.position[1], node.size[0]-10, node.size[1]-10] ) === true) {
+					if(branchRight === node || node.parentNode !== null) continue;
+					branchRight.rightBranch = node;
+					node.parentNode = branchRight;
+					break;
+				}
+			}
+			branchRight = null;
+		}
 	} else if (e.button === 2){
 		clearTimeout(rightbuttonhandler);
 		rightbuttonPressed = false;
@@ -297,7 +327,14 @@ function canvas_wheel_handler(e) {
 }
 
 function canvas_keydown_handler(e){
-	
+	if (e.key === "Delete" && focusedNode !== null){
+		for (var nodenum in classList[currentClass].bareNodeList){
+			if (focusedNode === classList[currentClass].bareNodeList[nodenum]){
+				classList[currentClass].bareNodeList.splice(nodenum,1);
+			}
+		}
+		focusedNode = null;
+	}
 }
 
 function PostLoadProject (fileText) {
@@ -345,10 +382,13 @@ function copyClass(ev)
 	
 }
 
-function refreshClassExplorer () {
-	
+function loadMapEditor(ev){
+
 }
 
+function loadClass(ev){
+
+}
 
 function createMemVar(ev) {
 	
@@ -374,7 +414,7 @@ function playProgram(ev) {
 function renderCanvas(){
 	document.getElementById("MainCanvas").width = document.getElementById("MainCanvas").width; // reset the canvas
 
-	for (var elem of bareNodeList){
+	for (var elem of classList[currentClass].bareNodeList){
 		elem.DrawNode();
 	}
 
@@ -386,7 +426,7 @@ function renderCanvas(){
 var Background = document.createElement('div');
 Background.id = "ide_main";
 Background.style.display = "table-row-group";
-Background.innerHTML = "<div id=\"tabcanvas\"></div>\
+Background.innerHTML = "<div id=\"tabcanvas\" style=\"background-color:#227433;overflow-x:scroll;\"></div>\
 <div id = \"mainplate\"> \
        <canvas id=\"MainCanvas\" width=\"800px\" height=\"600px\"></canvas> \
     </div>";
@@ -394,7 +434,20 @@ document.getElementById("mw-content-text").appendChild(Background);
 Background.innerHTML += "<span id = \"nodelist\" width=\"800px\" height=\"600px\"> \
 	Xen2K IDE<br>\
     </span>";
-
+var mapEditor = document.createElement("span");
+mapEditor.id = "mapEditor";
+mapEditor.innerText = " Map Editor ";
+mapEditor.style.backgroundColor = "#999922";
+mapEditor.style.border = "1px solid black";
+document.getElementById("tabcanvas").appendChild(mapEditor);
+for (var classdata of classList){
+	var classTab = document.createElement("span");
+	classTab.id = classdata.name;
+	classTab.innerText = classdata.name;
+	classTab.style.backgroundColor = "#999922";
+	classTab.style.border = "1px solid black";
+	document.getElementById("tabcanvas").appendChild(classTab);
+}
 var savedialog = document.createElement("dialog");
 savedialog.id = "savedialog";
 var saveform = document.createElement("form");
