@@ -2,7 +2,7 @@
 // Xen2K visual editor
 // author: Xena
 
-var Xen2KHandle = new Xen2K();
+// var Xen2KHandle = new Xen2K();
 
 function isWhitespace(c) {
     return (c === '-') || (c === '\r') || (c === '\n') || ((c >= 'A') && (c <= 'Z') && (c !== 'E') && (c !== 'S'));
@@ -16,6 +16,14 @@ function digit(c){
         return (c.charCodeAt(0) - '0'.charCodeAt(0));
     }
     return 10;
+}
+
+function pointIsInArea(pos, area){
+	if (pos[0] > area[0] && pos[0]< area[0]+ area[2] && pos[1] > area[1] && pos[1] < area[1]+ area[3]){
+		return true;
+	} else {
+		return false;
+	}
 }
 
 function atoi(number) {
@@ -62,14 +70,14 @@ BreakLoop.prototype.toString = function () {
     return this.name + ': "' + this.message + '"';
 }
 
-
+var ctx = null;
 function DropdownMenu (menulist){
 	this.position = [0,0];
 	this.size = [120, 160];
 	this.activated = false;
 	this.MenuList = menulist; // contain [[a, name], [b, name2], ...]
 	this.sightpoint = 0; // determine the visible range of MenuList (sightpoint~sightpoint + 10)
-	this.DrawMenu = (ctx) => {
+	this.DrawMenu = () => {
 		ctx.beginPath();
 		ctx.rect(this.position[0], this.position[1], this.size[0], this.size[1]);
 		ctx.fillStyle = "rgba(120, 120, 120, 1)";
@@ -204,11 +212,10 @@ function CanvasBox (nodename, numstr) {
 	}
 }
 var bareNodeList = [];
+var focusedNode = null;
 var contentChanged = 1;
 // callback functions
 function onChangeFile(event) {
-	document.getElementById("ide_class").innerHTML = "변수 수정<input id=\"varEdit\" name=\"ide_VarEdit\" onchange=\"EditMemberVar(event)\">";
-	document.getElementById("ide_class").innerHTML += "<button onclick=\"createClass(event)\">새 클래스 만들기</button>"
 	var fileText;
 	FreshPageLoaded = false;
 	var file = event.target.files[0];
@@ -223,19 +230,36 @@ function onChangeFile(event) {
 	reader.readAsText(file);
 }
 
+var rightbuttonhandler = null;
+
 function canvas_mousedown_handler(e) {
-	e.preventDefault();
-	if (e.button === 0) {
-		
+	if (e.button === 0){
+		for (var node of bareNodeList){
+			if (pointIsInArea([e.clientX, e.clientY], [node.position[0], node.position[1], node.size[0], node.size[1]] ) === true) {
+				focusedNode = node;
+				break;
+			}
+		}
+		if (DropdownMenuHandler.activated === true) DropdownMenuHandler.activated = false;
 	} else if (e.button === 2) {
-    }
+		rightbuttonhandler = setTimeout(function (pos) {
+			if (DropdownMenuHandler.activated === false) {
+				DropdownMenuHandler.activated = true;
+				DropdownMenuHandler.position = pos;
+			}
+		}, 500, [e.clientX, e.clientY]);
+	}
 }
 function canvas_mousemove_handler(e){
 	
 }
 function canvas_mouseup_handler(e){
 	e.preventDefault();
-	
+	if(e.button === 0){
+		focusedNode = null;
+	} else if (e.button === 2){
+		clearTimeout(rightbuttonhandler);
+	}
 }
 
 function canvas_wheel_handler(e) {
@@ -321,6 +345,8 @@ function playProgram(ev) {
 function renderCanvas(){
 	document.getElementById("MainCanvas").width = document.getElementById("MainCanvas").width; // reset the canvas
 
+	if(DropdownMenuHandler.activated === true)DropdownMenuHandler.DrawMenu();
+
 	requestAnimationFrame(renderCanvas);
 }
 
@@ -357,14 +383,14 @@ document.getElementById("ide_main").appendChild(savedialog);
 
 var projectsettings = document.createElement('div');
 projectsettings.id = "ide_projectsettings";
-cprojectsettings.innerHTML = "변수 수정<input id=\"varEdit\" name=\"ide_VarEdit\" onchange=\"EditMemberVar(event)\">";
+projectsettings.innerHTML = "";
 projectsettings.innerHTML += "<button onclick=\"createClass(event)\">새 클래스 만들기</button>"
 document.getElementById("ide_main").appendChild(projectsettings);
 
 var SaveButton = document.createElement("button");
 SaveButton.id = "saveButton";
 SaveButton.addEventListener("click", savehandler);
-SaveButton.innerText = "임시저장";
+SaveButton.innerText = "저장";
 document.getElementById("ide_main").appendChild(SaveButton);
 
 var PlayButton = document.createElement("button");
@@ -384,7 +410,9 @@ document.getElementById("ide_main").appendChild(formElement);
 window.addEventListener('DOMContentLoaded', () => {
 	
 	var element2 = document.getElementById("MainCanvas");
+	ctx = document.getElementById("MainCanvas").getContext("2d");
 
+	
 	element2.addEventListener("mousedown", canvas_mousedown_handler);
 	element2.addEventListener("contextmenu", function(e) {e.preventDefault();return false;});
 	element2.addEventListener("mouseup",canvas_mouseup_handler);
