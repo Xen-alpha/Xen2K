@@ -70,7 +70,7 @@ BreakLoop.prototype.toString = function () {
     return this.name + ': "' + this.message + '"';
 }
 
-var ctx = null;
+
 function DropdownMenu (menulist){
 	this.position = [0,0];
 	this.size = [120, 160];
@@ -78,6 +78,7 @@ function DropdownMenu (menulist){
 	this.MenuList = menulist; // contain [[a, name], [b, name2], ...]
 	this.sightpoint = 0; // determine the visible range of MenuList (sightpoint~sightpoint + 10)
 	this.DrawMenu = () => {
+		var ctx = document.getElementById("MainCanvas").getContext("2d");
 		ctx.beginPath();
 		ctx.rect(this.position[0], this.position[1], this.size[0], this.size[1]);
 		ctx.fillStyle = "rgba(120, 120, 120, 1)";
@@ -143,8 +144,8 @@ FunctionInfoElem.push(['_','_']);
 
 var DropdownMenuHandler = new DropdownMenu(FunctionInfoElem);
 
-function CanvasBox (nodename, numstr) {
-	this.position = [0,0];
+function CanvasBox (pos, nodename, numstr) {
+	this.position = pos;
 	this.size = [100, 50];
 	this.nodename = nodename;
 	this.numstr = numstr;
@@ -231,27 +232,47 @@ function onChangeFile(event) {
 }
 
 var rightbuttonhandler = null;
+var rightbuttonPressed = false;
 
 function canvas_mousedown_handler(e) {
 	if (e.button === 0){
+		focusedNode = null;
 		for (var node of bareNodeList){
-			if (pointIsInArea([e.clientX, e.clientY], [node.position[0], node.position[1], node.size[0], node.size[1]] ) === true) {
+			if (pointIsInArea([e.offsetX, e.offsetY], [node.position[0], node.position[1], node.size[0], node.size[1]] ) === true) {
 				focusedNode = node;
 				break;
 			}
 		}
-		if (DropdownMenuHandler.activated === true) DropdownMenuHandler.activated = false;
+		if (DropdownMenuHandler.activated === true) {
+			if (pointIsInArea([e.offsetX, e.offsetY], [DropdownMenuHandler.position[0], DropdownMenuHandler.position[1], DropdownMenuHandler.size[0], DropdownMenuHandler.size[1]] ) === true) {
+				var offset = Math.floor((e.offsetY - DropdownMenuHandler.position[1]) / 10);
+				var target = offset + DropdownMenuHandler.sightpoint;
+				bareNodeList.push(new CanvasBox(DropdownMenuHandler.position, DropdownMenuHandler.MenuList[target][1], DropdownMenuHandler.MenuList[target][0]));
+			}
+			DropdownMenuHandler.activated = false;
+		}
 	} else if (e.button === 2) {
+		rightbuttonPressed = true;
 		rightbuttonhandler = setTimeout(function (pos) {
 			if (DropdownMenuHandler.activated === false) {
 				DropdownMenuHandler.activated = true;
 				DropdownMenuHandler.position = pos;
 			}
-		}, 500, [e.clientX, e.clientY]);
+		}, 200, [e.offsetX, e.offsetY]);
 	}
 }
 function canvas_mousemove_handler(e){
-	
+	if (rightbuttonPressed === true && focusedNode === null) {
+		clearTimeout(rightbuttonhandler);
+		for (var elem of bareNodeList){
+			elem.position[0] += e.movementX;
+			elem.position[1] += e.movementY;
+		}
+	}
+	if (focusedNode !== null && rightbuttonPressed === false){
+		focusedNode.position[0] += e.movementX;
+		focusedNode.position[1] += e.movementY;
+	}
 }
 function canvas_mouseup_handler(e){
 	e.preventDefault();
@@ -259,12 +280,20 @@ function canvas_mouseup_handler(e){
 		focusedNode = null;
 	} else if (e.button === 2){
 		clearTimeout(rightbuttonhandler);
+		rightbuttonPressed = false;
 	}
 }
 
 function canvas_wheel_handler(e) {
 	e.preventDefault();
-	
+	if ( DropdownMenuHandler.activated === true) {
+		if (e.wheelDeltaY > 0 && DropdownMenuHandler.sightpoint > 0) {
+			DropdownMenuHandler.sightpoint--;
+		}
+		if (e.wheelDeltaY < 0 && DropdownMenuHandler.sightpoint < DropdownMenuHandler.MenuList.length - 10) {
+			DropdownMenuHandler.sightpoint++;
+		}
+	}
 }
 
 function canvas_keydown_handler(e){
@@ -344,6 +373,10 @@ function playProgram(ev) {
 
 function renderCanvas(){
 	document.getElementById("MainCanvas").width = document.getElementById("MainCanvas").width; // reset the canvas
+
+	for (var elem of bareNodeList){
+		elem.DrawNode();
+	}
 
 	if(DropdownMenuHandler.activated === true)DropdownMenuHandler.DrawMenu();
 
