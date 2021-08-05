@@ -288,10 +288,12 @@ function canvas_mousedown_handler(e) {
 			}
 		}
 		if (DropdownMenuHandler.activated === true) {
-			if (pointIsInArea([e.offsetX, e.offsetY], [DropdownMenuHandler.position[0], DropdownMenuHandler.position[1], DropdownMenuHandler.size[0], DropdownMenuHandler.size[1]] ) === true) {
-				var offset = Math.trunc((e.offsetY - DropdownMenuHandler.position[1]) / 16);
-				var target = offset + DropdownMenuHandler.sightpoint;
-				classList[currentClass].classFunctions[currentFunc].push(new CanvasBox(DropdownMenuHandler.position, DropdownMenuHandler.MenuList[target][1], DropdownMenuHandler.MenuList[target][0]));
+			if (currentClass >=0 && currentFunc >= 0) {
+				if (pointIsInArea([e.offsetX, e.offsetY], [DropdownMenuHandler.position[0], DropdownMenuHandler.position[1], DropdownMenuHandler.size[0], DropdownMenuHandler.size[1]] ) === true) {
+					var offset = Math.trunc((e.offsetY - DropdownMenuHandler.position[1]) / 16);
+					var target = offset + DropdownMenuHandler.sightpoint;
+					classList[currentClass].classFunctions[currentFunc].push(new CanvasBox(DropdownMenuHandler.position, DropdownMenuHandler.MenuList[target][1], DropdownMenuHandler.MenuList[target][0]));
+				}
 			}
 			DropdownMenuHandler.activated = false;
 		}
@@ -308,9 +310,11 @@ function canvas_mousedown_handler(e) {
 function canvas_mousemove_handler(e){
 	if (rightbuttonPressed === true && focusedNode === null) {
 		clearTimeout(rightbuttonhandler);
-		for (var elem of classList[currentClass].classFunctions[currentFunc]){
-			elem.position[0] += e.movementX;
-			elem.position[1] += e.movementY;
+		if (currentClass >=0 && currentFunc >= 0) {
+			for (var elem of classList[currentClass].classFunctions[currentFunc]){
+				elem.position[0] += e.movementX;
+				elem.position[1] += e.movementY;
+			}
 		}
 	}
 	if (focusedNode !== null && rightbuttonPressed === false){
