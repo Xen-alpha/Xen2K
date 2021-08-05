@@ -205,13 +205,48 @@ function CanvasBox (pos, nodename, numstr) {
 function X2KClass(classname, variables, functions){
 	this.name = classname;
 	this.varList = variables;
-	this.bareNodeList = functions;
+	this.classFunctions = functions; // list of subArray
+	this.leftChild = -1;
+	this.rightChild = -1;
+}
+
+function linearizeClass(targetClass){
+	// export to x2k file(not x2kp)
+	var result = "& " + targetClass.name+"\n";
+	for (var variable of targetClass.varList){
+		result += "# " + variable[0] + "," + variable[1].toString()+"\n";
+	}
+	function recursiveStringifyFunction(functionNode){ // functionNode => CanvasBox
+		if (functionNode === null) throw "Empty branch detected";
+		if (functionNode.nodename === "*") return "*";
+		if (functionNode.nodename === "_") return "_";
+		var tempresult = functionNode.numstr;
+		tempresult += "=";
+		tempresult += recursiveStringifyFunction(functionNode.leftBranch);
+		tempresult += "+";
+		tempresult += recursiveStringifyFunction(functionNode.rightBranch);
+		tempresult += ".";
+		return tempresult;
+	}
+	for (var func of targetClass.classFunctions){
+		// func will be an array of metadata for member functions
+		result += "! ";
+		try{
+			result += recursiveStringifyFunction(func);
+		} catch (e){
+			alert(e);
+			return;
+		}
+		result += "\n";
+	}
+	return result;
 }
 
 var currentClass = 0;
+var currentFunc = -1;
 var classList = [new X2KClass("Main", [], [])];
 var focusedNode = null;
-var contentChanged = 1;
+var contentChanged = 0;
 // callback functions
 function onChangeFile(event) {
 	var fileText;
@@ -220,8 +255,9 @@ function onChangeFile(event) {
 	var reader = new FileReader();
 	reader.onload = function(e) {
 	  fileText = e.target.result;
-	  contentChanged = 1;
+	  contentChanged = 0;
 	  currentClass = 0;
+	  currentFunc = 0;
 	  PostLoadProject(fileText);
 	};
 	reader.readAsText(file);
@@ -237,23 +273,25 @@ function canvas_mousedown_handler(e) {
 		focusedNode = null;
 		branchLeft = null;
 		branchRight = null;
-		for (var node of classList[currentClass].bareNodeList){
-			if (pointIsInArea([e.offsetX, e.offsetY], [node.position[0], node.position[1], node.size[0]-10, node.size[1]-10] ) === true) {
-				focusedNode = node;
-				break;
-			} else if (pointIsInArea([e.offsetX, e.offsetY], [node.position[0], node.position[1] + node.size[1]-10, node.size[0]/2, 10] ) === true) {
-				branchLeft = node;
-				break;
-			} else if (pointIsInArea([e.offsetX, e.offsetY], [node.position[0]+node.size[0]/2, node.position[1] + node.size[1]-10, node.size[0]/2, 10]) === true) {
-				branchRight = node;
-				break;
+		if (currentClass >=0 && currentFunc >= 0) {
+			for (var node of classList[currentClass].classFunctions[currentFunc]){
+				if (pointIsInArea([e.offsetX, e.offsetY], [node.position[0], node.position[1], node.size[0]-10, node.size[1]-10] ) === true) {
+					focusedNode = node;
+					break;
+				} else if (pointIsInArea([e.offsetX, e.offsetY], [node.position[0], node.position[1] + node.size[1]-10, node.size[0]/2, 10] ) === true) {
+					branchLeft = node;
+					break;
+				} else if (pointIsInArea([e.offsetX, e.offsetY], [node.position[0]+node.size[0]/2, node.position[1] + node.size[1]-10, node.size[0]/2, 10]) === true) {
+					branchRight = node;
+					break;
+				}
 			}
 		}
 		if (DropdownMenuHandler.activated === true) {
 			if (pointIsInArea([e.offsetX, e.offsetY], [DropdownMenuHandler.position[0], DropdownMenuHandler.position[1], DropdownMenuHandler.size[0], DropdownMenuHandler.size[1]] ) === true) {
 				var offset = Math.trunc((e.offsetY - DropdownMenuHandler.position[1]) / 16);
 				var target = offset + DropdownMenuHandler.sightpoint;
-				classList[currentClass].bareNodeList.push(new CanvasBox(DropdownMenuHandler.position, DropdownMenuHandler.MenuList[target][1], DropdownMenuHandler.MenuList[target][0]));
+				classList[currentClass].classFunctions[currentFunc].push(new CanvasBox(DropdownMenuHandler.position, DropdownMenuHandler.MenuList[target][1], DropdownMenuHandler.MenuList[target][0]));
 			}
 			DropdownMenuHandler.activated = false;
 		}
@@ -270,7 +308,7 @@ function canvas_mousedown_handler(e) {
 function canvas_mousemove_handler(e){
 	if (rightbuttonPressed === true && focusedNode === null) {
 		clearTimeout(rightbuttonhandler);
-		for (var elem of classList[currentClass].bareNodeList){
+		for (var elem of classList[currentClass].classFunctions[currentFunc]){
 			elem.position[0] += e.movementX;
 			elem.position[1] += e.movementY;
 		}
@@ -286,27 +324,29 @@ function canvas_mouseup_handler(e){
 		if (focusedNode !== null) {
 			focusedNode = null;
 		}
-		if (branchLeft !== null){
-			for (var node of classList[currentClass].bareNodeList){
-				if ( pointIsInArea([e.offsetX, e.offsetY], [node.position[0], node.position[1], node.size[0]-10, node.size[1]-10] ) === true) {
-					if (branchLeft === node || node.parentNode !== null) continue;
-					branchLeft.leftBranch = node;
-					node.parentNode = branchLeft;
-					break;
+		if (currentClass >= 0 && currentFunc >= 0){
+			if (branchLeft !== null){
+				for (var node of classList[currentClass].classFunctions[currentFunc]){
+					if ( pointIsInArea([e.offsetX, e.offsetY], [node.position[0], node.position[1], node.size[0]-10, node.size[1]-10] ) === true) {
+						if (branchLeft === node || node.parentNode !== null) continue;
+						branchLeft.leftBranch = node;
+						node.parentNode = branchLeft;
+						break;
+					}
 				}
+				branchLeft = null;
 			}
-			branchLeft = null;
-		}
-		if (branchRight !== null){
-			for (var node of classList[currentClass].bareNodeList){
-				if ( pointIsInArea([e.offsetX, e.offsetY], [node.position[0], node.position[1], node.size[0]-10, node.size[1]-10] ) === true) {
-					if(branchRight === node || node.parentNode !== null) continue;
-					branchRight.rightBranch = node;
-					node.parentNode = branchRight;
-					break;
+			if (branchRight !== null){
+				for (var node of classList[currentClass].classFunctions[currentFunc]){
+					if ( pointIsInArea([e.offsetX, e.offsetY], [node.position[0], node.position[1], node.size[0]-10, node.size[1]-10] ) === true) {
+						if(branchRight === node || node.parentNode !== null) continue;
+						branchRight.rightBranch = node;
+						node.parentNode = branchRight;
+						break;
+					}
 				}
+				branchRight = null;
 			}
-			branchRight = null;
 		}
 	} else if (e.button === 2){
 		clearTimeout(rightbuttonhandler);
@@ -328,12 +368,14 @@ function canvas_wheel_handler(e) {
 
 function canvas_keydown_handler(e){
 	if (e.key === "Delete" && focusedNode !== null){
-		for (var nodenum in classList[currentClass].bareNodeList){
-			if (focusedNode === classList[currentClass].bareNodeList[nodenum]){
-				classList[currentClass].bareNodeList.splice(nodenum,1);
+		if (currentClass >= 0 && currentFunc >= 0) {
+			for (var nodenum in classList[currentClass].classFunctions[currentFunc]){
+				if (focusedNode === classList[currentClass].classFunctions[currentFunc][nodenum]){
+					classList[currentClass].classFunctions[currentFunc].splice(nodenum,1);
+				}
 			}
+			focusedNode = null;
 		}
-		focusedNode = null;
 	}
 }
 
@@ -341,30 +383,48 @@ function PostLoadProject (fileText) {
 	
 }
 
-function StringifyBareNodeList(CanvasBoxNode){
-	
-}
+
 
 function savehandler(e) {
-    /*
-	// download the result
-    if (contentChanged === 0) {
-		var savemessagedialog = document.getElementById("savedialog");
-		contentChanged = savemessagedialog.showModal();
+	var result = "";
+	// &: class name, #: class variable, !: class function node
+	// save to x2kp file(not x2k file)
+	for (var targetClass of classList) {
+		result = "& " + targetClass.name+"\n";
+		for (var variable of targetClass.varList){
+			result += "# " + variable[0] + "," + variable[1].toString()+"\n";
+		}
+		
+		for (var func of targetClass.classFunctions){
+			// func will be an array of metadata and data for member functions
+			result += "! ";
+			try{
+				if (func.nodename === "*" || func.nodename === "_" ) {
+					result += func.position[0].toString() + "," + func.position[1].toString()+"," + func.nodename + "," + "-1" + "," + "-1";
+					result += "\n";
+					continue;
+				}
+				if (func.leftBranch === null || func.rightBranch === null) throw "Empty branch detected";
+				result += func.position[0].toString() + "," + func.position[1].toString()+"," + func.nodename + "," + targetClass.classFunctions.indexOf(func.leftBranch)+ "," +targetClass.classFunctions.indexOf(func.rightBranch);
+				result += "\n";
+			} catch (e){
+				alert(e);
+				return "";
+			}
+		}
 	}
-    else {
-        var file = new Blob([], {type:"text/plain"});
-        var a = document.createElement("a"),url = URL.createObjectURL(file);
-        a.href = url;
-        a.download = "savedata.x2k";
-        document.body.appendChild(a);
-        a.click();
-        setTimeout(function() {
-            document.body.removeChild(a);
-            window.URL.revokeObjectURL(url);  
-        }, 0);
-    }
-    */
+	contentChanged = 0;
+	var file = new Blob([result], {type:"text/plain"});
+	var a = document.createElement("a"),url = URL.createObjectURL(file);
+	a.href = url;
+	a.download = "project.x2k";
+	document.body.appendChild(a);
+	a.click();
+	setTimeout(function() {
+		document.body.removeChild(a);
+		window.URL.revokeObjectURL(url);  
+	}, 0);
+    
 }
 
 // normal function
@@ -414,8 +474,10 @@ function playProgram(ev) {
 function renderCanvas(){
 	document.getElementById("MainCanvas").width = document.getElementById("MainCanvas").width; // reset the canvas
 
-	for (var elem of classList[currentClass].bareNodeList){
-		elem.DrawNode();
+	if (currentClass >= 0 && currentFunc >= 0) {
+		for (var elem of classList[currentClass].classFunctions[currentFunc]){
+			elem.DrawNode();
+		}
 	}
 
 	if(DropdownMenuHandler.activated === true)DropdownMenuHandler.DrawMenu();
@@ -458,7 +520,7 @@ cancelbutton.setAttribute("value", 0);
 cancelbutton.innerText = "돌아가기";
 var okbutton = document.createElement("button");
 okbutton.setAttribute("value", 1);
-okbutton.innerText = "무시";
+okbutton.innerText = "계속";
 saveform.appendChild(cancelbutton);
 saveform.appendChild(okbutton);
 savedialog.appendChild(saveform);
