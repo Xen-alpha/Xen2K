@@ -202,12 +202,15 @@ function CanvasBox (pos, nodename, numstr) {
 	}
 }
 
-function X2KClass(classname, variables, functions){
+function X2KClass(idNum,classname, variables, functions){
+	this.id = idNum;
 	this.name = classname;
 	this.varList = variables;
 	this.classFunctions = functions; // list of subArray
 	this.leftChild = -1;
 	this.rightChild = -1;
+	this.curVar = -1;
+	this.curFunc = -1;
 }
 
 function linearizeClass(targetClass){
@@ -232,7 +235,7 @@ function linearizeClass(targetClass){
 		// func will be an array of metadata for member functions
 		result += "! ";
 		try{
-			result += recursiveStringifyFunction(func);
+			result += recursiveStringifyFunction(func[1]);
 		} catch (e){
 			alert(e);
 			return;
@@ -244,7 +247,7 @@ function linearizeClass(targetClass){
 
 var currentClass = 0;
 var currentFunc = -1;
-var classList = [new X2KClass("Main", [], [])];
+var classList = [new X2KClass(0,"Main", [], [])];
 var focusedNode = null;
 var contentChanged = 0;
 // callback functions
@@ -274,7 +277,7 @@ function canvas_mousedown_handler(e) {
 		branchLeft = null;
 		branchRight = null;
 		if (currentClass >=0 && currentFunc >= 0) {
-			for (var node of classList[currentClass].classFunctions[currentFunc]){
+			for (var node of classList[currentClass].classFunctions[currentFunc][1]){
 				if (pointIsInArea([e.offsetX, e.offsetY], [node.position[0], node.position[1], node.size[0]-10, node.size[1]-10] ) === true) {
 					focusedNode = node;
 					break;
@@ -292,7 +295,7 @@ function canvas_mousedown_handler(e) {
 				if (pointIsInArea([e.offsetX, e.offsetY], [DropdownMenuHandler.position[0], DropdownMenuHandler.position[1], DropdownMenuHandler.size[0], DropdownMenuHandler.size[1]] ) === true) {
 					var offset = Math.trunc((e.offsetY - DropdownMenuHandler.position[1]) / 16);
 					var target = offset + DropdownMenuHandler.sightpoint;
-					classList[currentClass].classFunctions[currentFunc].push(new CanvasBox(DropdownMenuHandler.position, DropdownMenuHandler.MenuList[target][1], DropdownMenuHandler.MenuList[target][0]));
+					classList[currentClass].classFunctions[currentFunc][1].push(new CanvasBox(DropdownMenuHandler.position, DropdownMenuHandler.MenuList[target][1], DropdownMenuHandler.MenuList[target][0]));
 				}
 			}
 			DropdownMenuHandler.activated = false;
@@ -311,7 +314,7 @@ function canvas_mousemove_handler(e){
 	if (rightbuttonPressed === true && focusedNode === null) {
 		clearTimeout(rightbuttonhandler);
 		if (currentClass >=0 && currentFunc >= 0) {
-			for (var elem of classList[currentClass].classFunctions[currentFunc]){
+			for (var elem of classList[currentClass].classFunctions[currentFunc][1]){
 				elem.position[0] += e.movementX;
 				elem.position[1] += e.movementY;
 			}
@@ -330,7 +333,7 @@ function canvas_mouseup_handler(e){
 		}
 		if (currentClass >= 0 && currentFunc >= 0){
 			if (branchLeft !== null){
-				for (var node of classList[currentClass].classFunctions[currentFunc]){
+				for (var node of classList[currentClass].classFunctions[currentFunc][1]){
 					if ( pointIsInArea([e.offsetX, e.offsetY], [node.position[0], node.position[1], node.size[0]-10, node.size[1]-10] ) === true) {
 						if (branchLeft === node || node.parentNode !== null) continue;
 						branchLeft.leftBranch = node;
@@ -341,7 +344,7 @@ function canvas_mouseup_handler(e){
 				branchLeft = null;
 			}
 			if (branchRight !== null){
-				for (var node of classList[currentClass].classFunctions[currentFunc]){
+				for (var node of classList[currentClass].classFunctions[currentFunc][1]){
 					if ( pointIsInArea([e.offsetX, e.offsetY], [node.position[0], node.position[1], node.size[0]-10, node.size[1]-10] ) === true) {
 						if(branchRight === node || node.parentNode !== null) continue;
 						branchRight.rightBranch = node;
@@ -374,8 +377,9 @@ function canvas_keydown_handler(e){
 	if (e.key === "Delete" && focusedNode !== null){
 		if (currentClass >= 0 && currentFunc >= 0) {
 			for (var nodenum in classList[currentClass].classFunctions[currentFunc]){
-				if (focusedNode === classList[currentClass].classFunctions[currentFunc][nodenum]){
-					classList[currentClass].classFunctions[currentFunc].splice(nodenum,1);
+				if (focusedNode === classList[currentClass].classFunctions[currentFunc][1][nodenum]){
+					classList[currentClass].classFunctions[currentFunc][1].splice(nodenum,1);
+					break;
 				}
 			}
 			focusedNode = null;
@@ -386,7 +390,6 @@ function canvas_keydown_handler(e){
 function PostLoadProject (fileText) {
 	
 }
-
 
 
 function savehandler(e) {
@@ -433,8 +436,10 @@ function savehandler(e) {
 
 // normal function
 
-function createClass() {
-	
+function createClass(ev) {
+	classList.push(new X2KClass(classList.length,"Class " + (classList.length).toString(10), [], []));
+	currentClass = classList.length-1;
+	currentFunc = -1;
 }
 
 function deleteClass(ev)
@@ -446,25 +451,41 @@ function copyClass(ev)
 	
 }
 
+function loadfunc(ev){
+	currentFunc = ev.target.value;
+}
+
+function loadClass(ev){
+	currentClass = ev.target.value;
+	currentFunc = -1;
+}
+
 function loadMapEditor(ev){
 
 }
 
-function loadClass(ev){
+function loadProjectSetting(ev){
 
 }
 
 function createMemVar(ev) {
-	
+	if(currentClass >=0){
+		classList[currentClass].varList.push(["변수 "+(classList[currentClass].varList.length).toString(), 0]);
+	}
 }
 function deleteMemVar(ev) {
 	
 }
 function createMemFunc(ev) {
-	
+	if(currentClass >=0){
+		classList[currentClass].classFunctions.push(["함수 "+(classList[currentClass].classFunctions.length).toString(), []]);
+		currentFunc = classList[currentClass].classFunctions.length-1;
+	}
 }
 function deleteMemFunc(ev) {
-	
+	if(currentClass >=0) {
+
+	}
 }
 
 function EditMemberVar(ev) {
@@ -476,12 +497,62 @@ function playProgram(ev) {
 }
 
 function renderCanvas(){
+	// reset and draw tab canvas
+	var tabCanvas = document.getElementById("tabcanvas");
+	tabCanvas.innerHTML = "";
+	var mapEditor = document.createElement("button");
+	mapEditor.id = "mapEditor";
+	mapEditor.innerText = " Map Editor ";
+	mapEditor.style.backgroundColor = "#999922";
+	mapEditor.style.border = "1px solid black";
+	mapEditor.style.display = "inline";
+	mapEditor.addEventListener("mouseup", loadMapEditor);
+	document.getElementById("tabcanvas").appendChild(mapEditor);
+	for (var classdata of classList){
+		var classTab = document.createElement("button");
+		classTab.id = classdata.name;
+		classTab.class = "classTab";
+		classTab.value = classList.indexOf(classdata);
+		classTab.innerText = classdata.name;
+		classTab.style.backgroundColor = "#999922";
+		classTab.style.border = "1px solid black";
+		classTab.style.display = "inline";
+		classTab.addEventListener("mouseup", loadClass);
+		document.getElementById("tabcanvas").appendChild(classTab);
+	}
+	var sideCanvas = document.getElementById("varlist");
+	sideCanvas.innerHTML="";
+	for (var variable of classList[currentClass].varList){
+		var vardiv = document.createElement("div");
+		vardiv.class = "classvar";
+		vardiv.innerHTML = "<p>"+variable[0]+ "</p><input type=\"text\" class=\"vardiv\">";
+		sideCanvas.appendChild(vardiv);
+	}
+	var funclist = document.getElementById("funclist");
+	funclist.innerHTML = "";
+	for (var funcElem of classList[currentClass].classFunctions){
+		var vardiv = document.createElement("button");
+		vardiv.innerHTML = funcElem[0];
+		vardiv.class = "classfunc";
+		vardiv.value = classList[currentClass].classFunctions.indexOf(funcElem);
+		vardiv.addEventListener("mouseup", loadfunc);
+		funclist.appendChild(vardiv);
+	}
+	// reset main canvas
 	document.getElementById("MainCanvas").width = document.getElementById("MainCanvas").width; // reset the canvas
-
+	// draw current member function
 	if (currentClass >= 0 && currentFunc >= 0) {
-		for (var elem of classList[currentClass].classFunctions[currentFunc]){
+		for (var elem of classList[currentClass].classFunctions[currentFunc][1]){
 			elem.DrawNode();
 		}
+	} else if (currentClass >= 0 && currentFunc <0) {
+		var ctx = document.getElementById("MainCanvas").getContext("2d");
+		ctx.beginPath();
+		ctx.font = "10px Arial, sans-serif";
+		ctx.textAlign = "center";
+		ctx.textBaseline = "middle";
+		ctx.strokeText("Select a function to modify",320, 240);
+		ctx.closePath();
 	}
 
 	if(DropdownMenuHandler.activated === true)DropdownMenuHandler.DrawMenu();
@@ -492,28 +563,16 @@ function renderCanvas(){
 var Background = document.createElement('div');
 Background.id = "ide_main";
 Background.style.display = "table-row-group";
-Background.innerHTML = "<div id=\"tabcanvas\" style=\"background-color:#227433;overflow-x:scroll;\"></div>\
-<div id = \"mainplate\"> \
-       <canvas id=\"MainCanvas\" width=\"800px\" height=\"600px\"></canvas> \
+Background.innerHTML = "<div id=\"tabcanvas\" style=\"width:640px;height:40px;background-color:#227433;display:inline-flex;overflow-y:hidden;overflow-x:scroll;\"></div>\
+	<div id = \"mainplate\" style=\"width:640px;\"> \
+       <canvas id=\"MainCanvas\" width=\"640px\" height=\"480px\" style=\"display:inline\"></canvas> \
     </div>";
 document.getElementById("mw-content-text").appendChild(Background);
-Background.innerHTML += "<span id = \"nodelist\" width=\"800px\" height=\"600px\"> \
+Background.innerHTML += "<span id = \"nodelist\" > \
 	Xen2K IDE<br>\
+	<div id=\"varlist\" style=\"width:640px;display:flex;overflow-x:scroll;\"></div>\
+	<div id=\"funclist\" style=\"width:640px;display:flex;overflow-x:scroll;\"></div>\
     </span>";
-var mapEditor = document.createElement("span");
-mapEditor.id = "mapEditor";
-mapEditor.innerText = " Map Editor ";
-mapEditor.style.backgroundColor = "#999922";
-mapEditor.style.border = "1px solid black";
-document.getElementById("tabcanvas").appendChild(mapEditor);
-for (var classdata of classList){
-	var classTab = document.createElement("span");
-	classTab.id = classdata.name;
-	classTab.innerText = classdata.name;
-	classTab.style.backgroundColor = "#999922";
-	classTab.style.border = "1px solid black";
-	document.getElementById("tabcanvas").appendChild(classTab);
-}
 var savedialog = document.createElement("dialog");
 savedialog.id = "savedialog";
 var saveform = document.createElement("form");
@@ -536,7 +595,10 @@ document.getElementById("ide_main").appendChild(savedialog);
 var projectsettings = document.createElement('div');
 projectsettings.id = "ide_projectsettings";
 projectsettings.innerHTML = "";
-projectsettings.innerHTML += "<button onclick=\"createClass(event)\">새 클래스 만들기</button>"
+projectsettings.innerHTML += "<button onclick=\"loadProjectSetting(event)\">프로젝트 세팅</button>";
+projectsettings.innerHTML += "<button onclick=\"createClass(event)\">새 클래스 만들기</button>";
+projectsettings.innerHTML += "<button onclick=\"createMemFunc(event)\">클래스 함수 만들기</button>";
+projectsettings.innerHTML += "<button onclick=\"createMemVar(event)\">클래스 변수 만들기</button>";
 document.getElementById("ide_main").appendChild(projectsettings);
 
 var SaveButton = document.createElement("button");
