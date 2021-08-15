@@ -302,13 +302,15 @@ function canvas_mousedown_handler(e) {
 			DropdownMenuHandler.activated = false;
 		}
 	} else if (e.button === 2) {
-		rightbuttonPressed = true;
-		rightbuttonhandler = setTimeout(function (pos) {
-			if (DropdownMenuHandler.activated === false) {
-				DropdownMenuHandler.activated = true;
-				DropdownMenuHandler.position = pos;
-			}
-		}, 200, [e.offsetX, e.offsetY]);
+		if (currentFunc >= 0) {
+			rightbuttonPressed = true;
+			rightbuttonhandler = setTimeout(function (pos) {
+				if (DropdownMenuHandler.activated === false) {
+					DropdownMenuHandler.activated = true;
+					DropdownMenuHandler.position = pos;
+				}
+			}, 200, [e.offsetX, e.offsetY]);
+		}
 	}
 }
 function canvas_mousemove_handler(e){
@@ -453,14 +455,11 @@ function copyClass(ev)
 	refreshEditor();
 }
 
-function loadfunc(ev){
-	currentFunc = ev.target.value;
-}
-
 function loadClass(ev){
 	currentClass = ev.target.value;
 	currentFunc = -1;
 	currentVariable = -1;
+	refreshEditor();
 }
 
 function loadMapEditor(ev){
@@ -479,6 +478,10 @@ function createMemVar(ev) {
 	refreshEditor();
 }
 function deleteMemVar(ev) {
+	if(currentClass >=0 && currentVariable >= 0) {
+		classList[currentClass].varList.splice(parseInt(ev.target.value),1);
+		currentVariable = -1;
+	}
 	refreshEditor();
 }
 
@@ -490,8 +493,12 @@ function SelectVariable(ev){
 		elem.style.backgroundColor = "#ffffff";
 		elem.style.display = "none";
 	}
+	for (var elem of document.getElementsByClassName("vardel")){
+		elem.style.display = "none";
+	}
 	ev.target.style.backgroundColor = "#999890";
-	document.getElementsByClassName("varinput")[ev.target.value].style.display = "block";
+	document.getElementsByClassName("varinput")[parseInt(ev.target.value)].style.display = "block";
+	document.getElementsByClassName("vardel")[parseInt(ev.target.value)].style.display = "block";
 	currentVariable = parseInt(ev.target.value);
 }
 
@@ -504,12 +511,20 @@ function createMemFunc(ev) {
 }
 function deleteMemFunc(ev) {
 	if(currentClass >=0) {
-
+		classList[currentClass].classFunctions.splice(parseInt(ev.target.value),1);
+		currentFunc = -1;
 	}
 	refreshEditor();
 }
 
-
+function loadfunc(ev){
+	for (var elem of document.getElementsByClassName("funcdel")){
+		elem.style.display = "none";
+	}
+	currentFunc = parseInt(ev.target.value);
+	document.getElementsByClassName("funcdel")[parseInt(ev.target.value)].style.display = "block";
+	
+}
 
 function playProgram(ev) {
 
@@ -538,16 +553,16 @@ function refreshEditor(){
 		classTab.addEventListener("click", loadClass);
 		document.getElementById("tabcanvas").appendChild(classTab);
 	}
-	currentVariable = -1;
+
 	var sideCanvas = document.getElementById("varlist");
 	sideCanvas.innerHTML="";
 	for (var index in classList[currentClass].varList){
 		var vardiv = document.createElement("button");
 		vardiv.className = "varlist_inner";
 		vardiv.style.backgroundColor = "#808080";
-		vardiv.value = classList[currentClass].varList[index][0].toString();
+		vardiv.value = index.toString();
 		vardiv.addEventListener("click", SelectVariable);
-		vardiv.innerHTML = "변수 "+index.toString();
+		vardiv.innerHTML = "변수 "+ index.toString();
 		var textbox = document.createElement("input");
 		textbox.type = "text";
 		textbox.size = "12";
@@ -556,20 +571,37 @@ function refreshEditor(){
 		textbox.style.backgroundColor = "#ffffff";
 		textbox.addEventListener("change", EditMemberVar);
 		textbox.style.display = "none";
+		var delButton =document.createElement("button");
+		delButton.style.backgroundColor = "#808080";
+		delButton.className = "vardel";
+		delButton.value = index.toString();
+		delButton.addEventListener("click", deleteMemVar);
+		delButton.innerText = "X";
+		delButton.style.display = "none";
 
 		sideCanvas.appendChild(vardiv);
 		sideCanvas.appendChild(textbox);
+		sideCanvas.appendChild(delButton);
 	}
 	var funclist = document.getElementById("funclist");
 	funclist.innerHTML = "";
 	for (var funcElem of classList[currentClass].classFunctions){
 		var vardiv = document.createElement("button");
-		vardiv.innerHTML = funcElem[0];
+		vardiv.innerHTML = "함수 "+classList[currentClass].classFunctions.indexOf(funcElem).toString();
 		vardiv.class = "classfunc";
-		vardiv.value = classList[currentClass].classFunctions.indexOf(funcElem);
+		vardiv.value = classList[currentClass].classFunctions.indexOf(funcElem).toString();
 		vardiv.addEventListener("click", loadfunc);
 		funclist.appendChild(vardiv);
+		var delButton =document.createElement("button");
+		delButton.style.backgroundColor = "#808080";
+		delButton.className = "funcdel";
+		delButton.value = classList[currentClass].classFunctions.indexOf(funcElem).toString();
+		delButton.addEventListener("click", deleteMemFunc);
+		delButton.innerText = "X";
+		delButton.style.display = "none";
+		funclist.appendChild(delButton);
 	}
+	DropdownMenuHandler.activated = false;
 }
 
 function renderCanvas(){
@@ -589,9 +621,11 @@ function renderCanvas(){
 		ctx.textBaseline = "middle";
 		ctx.strokeText("Select a function to modify",320, 240);
 		ctx.closePath();
+	} else if (currentClass === -1){
+		// draw map editor
 	}
 
-	if(DropdownMenuHandler.activated === true)DropdownMenuHandler.DrawMenu();
+	if(DropdownMenuHandler.activated === true) DropdownMenuHandler.DrawMenu();
 
 	requestAnimationFrame(renderCanvas);
 }
