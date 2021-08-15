@@ -247,6 +247,7 @@ function linearizeClass(targetClass){
 
 var currentClass = 0;
 var currentFunc = -1;
+var currentVariable = -1;
 var classList = [new X2KClass(0,"Main", [], [])];
 var focusedNode = null;
 var contentChanged = 0;
@@ -440,15 +441,16 @@ function createClass(ev) {
 	classList.push(new X2KClass(classList.length,"Class " + (classList.length).toString(10), [], []));
 	currentClass = classList.length-1;
 	currentFunc = -1;
+	refreshEditor();
 }
 
 function deleteClass(ev)
 {
-	
+	refreshEditor();
 }
 function copyClass(ev)
 {
-	
+	refreshEditor();
 }
 
 function loadfunc(ev){
@@ -458,6 +460,7 @@ function loadfunc(ev){
 function loadClass(ev){
 	currentClass = ev.target.value;
 	currentFunc = -1;
+	currentVariable = -1;
 }
 
 function loadMapEditor(ev){
@@ -470,34 +473,49 @@ function loadProjectSetting(ev){
 
 function createMemVar(ev) {
 	if(currentClass >=0){
-		classList[currentClass].varList.push(["변수 "+(classList[currentClass].varList.length).toString(), 0]);
+		classList[currentClass].varList.push([classList[currentClass].varList.length, 0]);
+		currentVariable = -1;
 	}
+	refreshEditor();
 }
 function deleteMemVar(ev) {
-	
+	refreshEditor();
 }
+
+function EditMemberVar(ev) {
+	if(currentClass >= 0 && currentVariable >= 0)classList[currentClass].varList[currentVariable][1] = ev.target.value;
+}
+function SelectVariable(ev){
+	for (var elem of document.getElementsByClassName("varinput")){
+		elem.style.backgroundColor = "#ffffff";
+		elem.style.display = "none";
+	}
+	ev.target.style.backgroundColor = "#999890";
+	document.getElementsByClassName("varinput")[ev.target.value].style.display = "block";
+	currentVariable = parseInt(ev.target.value);
+}
+
 function createMemFunc(ev) {
 	if(currentClass >=0){
 		classList[currentClass].classFunctions.push(["함수 "+(classList[currentClass].classFunctions.length).toString(), []]);
 		currentFunc = classList[currentClass].classFunctions.length-1;
 	}
+	refreshEditor();
 }
 function deleteMemFunc(ev) {
 	if(currentClass >=0) {
 
 	}
+	refreshEditor();
 }
 
-function EditMemberVar(ev) {
-	
-}
+
 
 function playProgram(ev) {
 
 }
 
-function renderCanvas(){
-	// reset and draw tab canvas
+function refreshEditor(){
 	var tabCanvas = document.getElementById("tabcanvas");
 	tabCanvas.innerHTML = "";
 	var mapEditor = document.createElement("button");
@@ -506,7 +524,7 @@ function renderCanvas(){
 	mapEditor.style.backgroundColor = "#999922";
 	mapEditor.style.border = "1px solid black";
 	mapEditor.style.display = "inline";
-	mapEditor.addEventListener("mouseup", loadMapEditor);
+	mapEditor.addEventListener("click", loadMapEditor);
 	document.getElementById("tabcanvas").appendChild(mapEditor);
 	for (var classdata of classList){
 		var classTab = document.createElement("button");
@@ -517,16 +535,30 @@ function renderCanvas(){
 		classTab.style.backgroundColor = "#999922";
 		classTab.style.border = "1px solid black";
 		classTab.style.display = "inline";
-		classTab.addEventListener("mouseup", loadClass);
+		classTab.addEventListener("click", loadClass);
 		document.getElementById("tabcanvas").appendChild(classTab);
 	}
+	currentVariable = -1;
 	var sideCanvas = document.getElementById("varlist");
 	sideCanvas.innerHTML="";
-	for (var variable of classList[currentClass].varList){
-		var vardiv = document.createElement("div");
-		vardiv.class = "classvar";
-		vardiv.innerHTML = "<p>"+variable[0]+ "</p><input type=\"text\" class=\"vardiv\">";
+	for (var index in classList[currentClass].varList){
+		var vardiv = document.createElement("button");
+		vardiv.className = "varlist_inner";
+		vardiv.style.backgroundColor = "#808080";
+		vardiv.value = classList[currentClass].varList[index][0].toString();
+		vardiv.addEventListener("click", SelectVariable);
+		vardiv.innerHTML = "변수 "+index.toString();
+		var textbox = document.createElement("input");
+		textbox.type = "text";
+		textbox.size = "12";
+		textbox.className = "varinput";
+		textbox.value = classList[currentClass].varList[index][1].toString();
+		textbox.style.backgroundColor = "#ffffff";
+		textbox.addEventListener("change", EditMemberVar);
+		textbox.style.display = "none";
+
 		sideCanvas.appendChild(vardiv);
+		sideCanvas.appendChild(textbox);
 	}
 	var funclist = document.getElementById("funclist");
 	funclist.innerHTML = "";
@@ -535,9 +567,13 @@ function renderCanvas(){
 		vardiv.innerHTML = funcElem[0];
 		vardiv.class = "classfunc";
 		vardiv.value = classList[currentClass].classFunctions.indexOf(funcElem);
-		vardiv.addEventListener("mouseup", loadfunc);
+		vardiv.addEventListener("click", loadfunc);
 		funclist.appendChild(vardiv);
 	}
+}
+
+function renderCanvas(){
+
 	// reset main canvas
 	document.getElementById("MainCanvas").width = document.getElementById("MainCanvas").width; // reset the canvas
 	// draw current member function
@@ -620,6 +656,7 @@ formElement.innerHTML = "\
       <input id=\"uploadInput\" type=\"file\" name=\"myFiles\" onchange=\"onChangeFile(event)\">";
 document.getElementById("ide_main").appendChild(formElement);
 
+refreshEditor();
 
 window.addEventListener('DOMContentLoaded', () => {
 	
