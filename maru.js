@@ -448,9 +448,13 @@ function createClass(ev) {
 
 function deleteClass(ev)
 {
+	if(currentClass >= 0){
+		classList.splice(parseInt(ev.target.value), 1);
+		currentClass = 0;
+	}
 	refreshEditor();
 }
-function copyClass(ev)
+function copyClass(ev) // for inheritance
 {
 	refreshEditor();
 }
@@ -463,11 +467,24 @@ function loadClass(ev){
 }
 
 function loadMapEditor(ev){
-
+	currentClass = -1;
+	currentFunc = -1;
+	currentVariable = -1;
+	refreshEditor();
 }
 
 function loadProjectSetting(ev){
+	currentClass = -3;
+	currentFunc = -1;
+	currentVariable = -1;
+	refreshEditor();
+}
 
+function loadUIEditor(ev) {
+	currentClass = -2;
+	currentFunc = -1;
+	currentVariable = -1;
+	refreshEditor();
 }
 
 function createMemVar(ev) {
@@ -533,25 +550,53 @@ function playProgram(ev) {
 function refreshEditor(){
 	var tabCanvas = document.getElementById("tabcanvas");
 	tabCanvas.innerHTML = "";
+	var settings = document.createElement("button");
+	settings.id = "ProjectSetting";
+	settings.innerText = " Project Settings ";
+	if (-3 === currentClass) settings.style.backgroundColor = "#F99900";
+	else settings.style.backgroundColor = "#999922";
+	settings.style.border = "1px solid black";
+	settings.style.display = "inline";
+	settings.addEventListener("click", loadProjectSetting);
+	var UIEditor = document.createElement("button");
+	UIEditor.id = "UIEditor";
+	UIEditor.innerText = " UI Editor ";
+	if (-2 === currentClass) UIEditor.style.backgroundColor = "#F99900";
+	else UIEditor.style.backgroundColor = "#999922";
+	UIEditor.style.border = "1px solid black";
+	UIEditor.style.display = "inline";
+	UIEditor.addEventListener("click", loadUIEditor);
 	var mapEditor = document.createElement("button");
 	mapEditor.id = "mapEditor";
 	mapEditor.innerText = " Map Editor ";
-	mapEditor.style.backgroundColor = "#999922";
+	if (-1 === currentClass) mapEditor.style.backgroundColor = "#F99900";
+	else mapEditor.style.backgroundColor = "#999922";
 	mapEditor.style.border = "1px solid black";
 	mapEditor.style.display = "inline";
 	mapEditor.addEventListener("click", loadMapEditor);
+	document.getElementById("tabcanvas").appendChild(settings);
+	document.getElementById("tabcanvas").appendChild(UIEditor);
 	document.getElementById("tabcanvas").appendChild(mapEditor);
 	for (var classdata of classList){
 		var classTab = document.createElement("button");
 		classTab.id = classdata.name;
-		classTab.class = "classTab";
-		classTab.value = classList.indexOf(classdata);
+		classTab.className = "classTab";
+		classTab.value = classList.indexOf(classdata).toString();
 		classTab.innerText = classdata.name;
-		classTab.style.backgroundColor = "#999922";
+		if (classTab.value === currentClass) classTab.style.backgroundColor = "#F99900";
+		else classTab.style.backgroundColor = "#999922";
 		classTab.style.border = "1px solid black";
 		classTab.style.display = "inline";
 		classTab.addEventListener("click", loadClass);
 		document.getElementById("tabcanvas").appendChild(classTab);
+		if (classList.indexOf(classdata) > 0){
+			var delButton = document.createElement("button");
+			delButton.className = "classdel";
+			delButton.value = classList.indexOf(classdata).toString();
+			delButton.innerText = "X";
+			delButton.addEventListener("click",deleteClass);
+			document.getElementById("tabcanvas").appendChild(delButton);
+		}
 	}
 
 	var sideCanvas = document.getElementById("varlist");
@@ -623,6 +668,10 @@ function renderCanvas(){
 		ctx.closePath();
 	} else if (currentClass === -1){
 		// draw map editor
+	} else if (currentClass === -2) {
+		// draw UI editor
+	} else if (currentClass === -3) {
+		// draw Project Setting menu
 	}
 
 	if(DropdownMenuHandler.activated === true) DropdownMenuHandler.DrawMenu();
@@ -704,7 +753,7 @@ window.addEventListener('DOMContentLoaded', () => {
 	element2.addEventListener("mousemove",canvas_mousemove_handler);
 	element2.addEventListener("wheel", canvas_wheel_handler);
 	document.addEventListener("keydown", canvas_keydown_handler);
-	
+
 	requestAnimationFrame(renderCanvas);
 	
 });
