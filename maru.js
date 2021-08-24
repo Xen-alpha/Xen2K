@@ -598,53 +598,64 @@ function refreshEditor(){
 			document.getElementById("tabcanvas").appendChild(delButton);
 		}
 	}
-
-	var sideCanvas = document.getElementById("varlist");
-	sideCanvas.innerHTML="";
-	for (var index in classList[currentClass].varList){
-		var vardiv = document.createElement("button");
-		vardiv.className = "varlist_inner";
-		vardiv.style.backgroundColor = "#808080";
-		vardiv.value = index.toString();
-		vardiv.addEventListener("click", SelectVariable);
-		vardiv.innerHTML = "변수 "+ index.toString();
-		var textbox = document.createElement("input");
-		textbox.type = "text";
-		textbox.size = "12";
-		textbox.className = "varinput";
-		textbox.value = classList[currentClass].varList[index][1].toString();
-		textbox.style.backgroundColor = "#ffffff";
-		textbox.addEventListener("change", EditMemberVar);
-		textbox.style.display = "none";
-		var delButton =document.createElement("button");
-		delButton.style.backgroundColor = "#808080";
-		delButton.className = "vardel";
-		delButton.value = index.toString();
-		delButton.addEventListener("click", deleteMemVar);
-		delButton.innerText = "X";
-		delButton.style.display = "none";
-
-		sideCanvas.appendChild(vardiv);
-		sideCanvas.appendChild(textbox);
-		sideCanvas.appendChild(delButton);
-	}
+	var varListBar = document.getElementById("varlist");
+	varListBar.innerHTML="";
 	var funclist = document.getElementById("funclist");
 	funclist.innerHTML = "";
-	for (var funcElem of classList[currentClass].classFunctions){
-		var vardiv = document.createElement("button");
-		vardiv.innerHTML = "함수 "+classList[currentClass].classFunctions.indexOf(funcElem).toString();
-		vardiv.class = "classfunc";
-		vardiv.value = classList[currentClass].classFunctions.indexOf(funcElem).toString();
-		vardiv.addEventListener("click", loadfunc);
-		funclist.appendChild(vardiv);
-		var delButton =document.createElement("button");
-		delButton.style.backgroundColor = "#808080";
-		delButton.className = "funcdel";
-		delButton.value = classList[currentClass].classFunctions.indexOf(funcElem).toString();
-		delButton.addEventListener("click", deleteMemFunc);
-		delButton.innerText = "X";
-		delButton.style.display = "none";
-		funclist.appendChild(delButton);
+	if (currentClass >= 0) {
+		for (var index in classList[currentClass].varList){
+			var vardiv = document.createElement("button");
+			vardiv.className = "varlist_inner";
+			vardiv.style.backgroundColor = "#808080";
+			vardiv.value = index.toString();
+			vardiv.addEventListener("click", SelectVariable);
+			vardiv.innerHTML = "변수 "+ index.toString();
+			var textbox = document.createElement("input");
+			textbox.type = "text";
+			textbox.size = "12";
+			textbox.className = "varinput";
+			textbox.value = classList[currentClass].varList[index][1].toString();
+			textbox.style.backgroundColor = "#ffffff";
+			textbox.addEventListener("change", EditMemberVar);
+			textbox.style.display = "none";
+			var delButton =document.createElement("button");
+			delButton.style.backgroundColor = "#808080";
+			delButton.className = "vardel";
+			delButton.value = index.toString();
+			delButton.addEventListener("click", deleteMemVar);
+			delButton.innerText = "X";
+			delButton.style.display = "none";
+
+			varListBar.appendChild(vardiv);
+			varListBar.appendChild(textbox);
+			varListBar.appendChild(delButton);
+		}
+		
+		for (var funcElem of classList[currentClass].classFunctions){
+			var vardiv = document.createElement("button");
+			vardiv.innerHTML = "함수 "+classList[currentClass].classFunctions.indexOf(funcElem).toString();
+			vardiv.class = "classfunc";
+			vardiv.value = classList[currentClass].classFunctions.indexOf(funcElem).toString();
+			vardiv.addEventListener("click", loadfunc);
+			funclist.appendChild(vardiv);
+			var delButton =document.createElement("button");
+			delButton.style.backgroundColor = "#808080";
+			delButton.className = "funcdel";
+			delButton.value = classList[currentClass].classFunctions.indexOf(funcElem).toString();
+			delButton.addEventListener("click", deleteMemFunc);
+			delButton.innerText = "X";
+			delButton.style.display = "none";
+			funclist.appendChild(delButton);
+		}
+	} else if (currentClass === -1) {
+		// set map editor
+
+	} else if (currentClass === -2) {
+		// draw UI editor
+
+	} else if (currentClass === -3) {
+		// draw Project Setting menu
+		
 	}
 	DropdownMenuHandler.activated = false;
 }
@@ -714,7 +725,6 @@ document.getElementById("ide_main").appendChild(savedialog);
 var projectsettings = document.createElement('div');
 projectsettings.id = "ide_projectsettings";
 projectsettings.innerHTML = "";
-projectsettings.innerHTML += "<button onclick=\"loadProjectSetting(event)\">프로젝트 세팅</button>";
 projectsettings.innerHTML += "<button onclick=\"createClass(event)\">새 클래스 만들기</button>";
 projectsettings.innerHTML += "<button onclick=\"createMemFunc(event)\">클래스 함수 만들기</button>";
 projectsettings.innerHTML += "<button onclick=\"createMemVar(event)\">클래스 변수 만들기</button>";
