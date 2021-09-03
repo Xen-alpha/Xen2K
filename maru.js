@@ -267,7 +267,7 @@ function onChangeFile(event) {
 	reader.readAsText(file);
 }
 
-
+var movingBG = false;
 var rightbuttonhandler = null;
 var rightbuttonPressed = false;
 var branchLeft = null;
@@ -290,6 +290,12 @@ function canvas_mousedown_handler(e) {
 					break;
 				}
 			}
+		} else if (currentClass === -1){
+			movingBG = true;
+		} else if (currentClass === -2){
+			movingBG = true;
+		} else if (currentClass === -3){
+			movingBG = true;
 		}
 		if (DropdownMenuHandler.activated === true) {
 			if (currentClass >=0 && currentFunc >= 0) {
@@ -314,6 +320,10 @@ function canvas_mousedown_handler(e) {
 	}
 }
 function canvas_mousemove_handler(e){
+	if (movingBG === true && currentClass === -1){
+		currentMapEditorPosition[0] += e.movementX;
+		currentMapEditorPosition[1] += e.movementY;
+	}
 	if (rightbuttonPressed === true && focusedNode === null) {
 		clearTimeout(rightbuttonhandler);
 		if (currentClass >=0 && currentFunc >= 0) {
@@ -358,6 +368,7 @@ function canvas_mouseup_handler(e){
 				branchRight = null;
 			}
 		}
+		movingBG = false;
 	} else if (e.button === 2){
 		clearTimeout(rightbuttonhandler);
 		rightbuttonPressed = false;
@@ -465,11 +476,12 @@ function loadClass(ev){
 	currentVariable = -1;
 	refreshEditor();
 }
-
+var currentMapEditorPosition = [0, 0];
 function loadMapEditor(ev){
 	currentClass = -1;
 	currentFunc = -1;
 	currentVariable = -1;
+	currentMapEditorPosition = [0, 0];
 	refreshEditor();
 }
 
@@ -479,11 +491,11 @@ function loadProjectSetting(ev){
 	currentVariable = -1;
 	refreshEditor();
 }
-
 function loadUIEditor(ev) {
 	currentClass = -2;
 	currentFunc = -1;
 	currentVariable = -1;
+	currentUIEditorPosition = [0,0];
 	refreshEditor();
 }
 
@@ -625,7 +637,6 @@ function refreshEditor(){
 			delButton.addEventListener("click", deleteMemVar);
 			delButton.innerText = "X";
 			delButton.style.display = "none";
-
 			varListBar.appendChild(vardiv);
 			varListBar.appendChild(textbox);
 			varListBar.appendChild(delButton);
@@ -677,8 +688,49 @@ function renderCanvas(){
 		ctx.textBaseline = "middle";
 		ctx.strokeText("Select a function to modify",320, 240);
 		ctx.closePath();
-	} else if (currentClass === -1){
+	} else if (currentClass === -1 || currentClass === -2){
 		// draw map editor
+		var ctx = document.getElementById("MainCanvas").getContext("2d");
+		var basepos = [0, 0];
+		if (currentClass === -1) basepos = [currentMapEditorPosition[0] % 20, currentMapEditorPosition[1] % 20];
+		if (basepos[0] < 0) {
+			for (var i = 0; i < document.getElementById("MainCanvas").width / 20; i++){
+				ctx.beginPath();
+				ctx.moveTo(i * 20 + basepos[0], 0);
+				ctx.lineTo(i * 20 + basepos[0], document.getElementById("MainCanvas").height);
+				ctx.strokeStyle="rgba(10,10,10,1)";
+				ctx.stroke();
+				ctx.closePath();
+			}
+		} else {
+			for (var i = 0; i < document.getElementById("MainCanvas").width / 20; i++){
+				ctx.beginPath();
+				ctx.moveTo(i * 20 + basepos[0], 0);
+				ctx.lineTo(i * 20 + basepos[0], document.getElementById("MainCanvas").height);
+				ctx.strokeStyle="rgba(10,10,10,1)";
+				ctx.stroke();
+				ctx.closePath();
+			}
+		}
+		if (basepos[1] < 0) {
+			for (var i = 0; i < document.getElementById("MainCanvas").height / 20; i++){
+				ctx.beginPath();
+				ctx.moveTo(0, i * 20 + basepos[1]);
+				ctx.lineTo(document.getElementById("MainCanvas").width, i * 20 + basepos[1]);
+				ctx.strokeStyle="rgba(10,10,10,1)";
+				ctx.stroke();
+				ctx.closePath();
+			}
+		} else {
+			for (var i = 0; i < document.getElementById("MainCanvas").height / 20; i++){
+				ctx.beginPath();
+				ctx.moveTo(0, i * 20 + basepos[1]);
+				ctx.lineTo(document.getElementById("MainCanvas").width, i * 20 + basepos[1]);
+				ctx.strokeStyle="rgba(10,10,10,1)";
+				ctx.stroke();
+				ctx.closePath();
+			}
+		}
 	} else if (currentClass === -2) {
 		// draw UI editor
 	} else if (currentClass === -3) {
